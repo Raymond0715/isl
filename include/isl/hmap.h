@@ -16,29 +16,35 @@ extern "C" {
 #define ISL_HMAP ISL_yHMAP(ISL_KEY,ISL_VAL_BASE)
 #define ISL_HMAP_BASE ISL_yHMAP(ISL_KEY_BASE,ISL_VAL_BASE)
 
-struct ISL_HMAP;
+struct __isl_export ISL_HMAP;
 typedef struct ISL_HMAP	ISL_HMAP;
 
+__isl_constructor
 __isl_give ISL_HMAP *ISL_FN(ISL_HMAP,alloc)(isl_ctx *ctx, int min_size);
 __isl_give ISL_HMAP *ISL_FN(ISL_HMAP,copy)(__isl_keep ISL_HMAP *hmap);
 __isl_null ISL_HMAP *ISL_FN(ISL_HMAP,free)(__isl_take ISL_HMAP *hmap);
 
 isl_ctx *ISL_FN(ISL_HMAP,get_ctx)(__isl_keep ISL_HMAP *hmap);
 
+__isl_export
 isl_bool ISL_FN(ISL_HMAP,has)(__isl_keep ISL_HMAP *hmap,
 	__isl_keep ISL_KEY *key);
+__isl_export
 __isl_give ISL_VAL *ISL_FN(ISL_HMAP,get)(__isl_keep ISL_HMAP *hmap,
 	__isl_take ISL_KEY *key);
+__isl_export
 __isl_give ISL_HMAP *ISL_FN(ISL_HMAP,set)(__isl_take ISL_HMAP *hmap,
 	__isl_take ISL_KEY *key, __isl_take ISL_VAL *val);
 __isl_give ISL_HMAP *ISL_FN(ISL_HMAP,drop)(__isl_take ISL_HMAP *hmap,
 	__isl_take ISL_KEY *key);
 
+__isl_export
 isl_stat ISL_FN(ISL_HMAP,foreach)(__isl_keep ISL_HMAP *hmap,
 	isl_stat (*fn)(__isl_take ISL_KEY *key, __isl_take ISL_VAL *val,
 		void *user),
 	void *user);
 
+__isl_export
 __isl_give isl_printer *ISL_FN(isl_printer_print,ISL_HMAP_BASE)(
 	__isl_take isl_printer *p, __isl_keep ISL_HMAP *hmap);
 void ISL_FN(ISL_HMAP,dump)(__isl_keep ISL_HMAP *hmap);

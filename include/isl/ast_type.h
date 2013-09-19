@@ -7,13 +7,13 @@
 extern "C" {
 #endif
 
-struct isl_ast_expr;
+struct __isl_export isl_ast_expr;
 typedef struct isl_ast_expr isl_ast_expr;
 
-struct isl_ast_node;
+struct __isl_export isl_ast_node;
 typedef struct isl_ast_node isl_ast_node;
 
-enum isl_ast_op_type {
+enum __isl_export isl_ast_op_type {
 	isl_ast_op_error = -1,
 	isl_ast_op_and,
 	isl_ast_op_and_then,
@@ -43,14 +43,14 @@ enum isl_ast_op_type {
 	isl_ast_op_address_of
 };
 
-enum isl_ast_expr_type {
+enum __isl_export isl_ast_expr_type {
 	isl_ast_expr_error = -1,
 	isl_ast_expr_op,
 	isl_ast_expr_id,
 	isl_ast_expr_int
 };
 
-enum isl_ast_node_type {
+enum __isl_export isl_ast_node_type {
 	isl_ast_node_error = -1,
 	isl_ast_node_for = 1,
 	isl_ast_node_if,
@@ -67,7 +67,7 @@ enum isl_ast_loop_type {
 	isl_ast_loop_separate
 };
 
-struct isl_ast_print_options;
+struct __isl_export isl_ast_print_options;
 typedef struct isl_ast_print_options isl_ast_print_options;
 
 ISL_DECLARE_LIST(ast_expr)

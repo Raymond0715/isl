@@ -10,7 +10,7 @@
 extern "C" {
 #endif
 
-struct isl_band;
+struct __isl_export isl_band;
 typedef struct isl_band isl_band;
 
 ISL_DECLARE_LIST(band)
@@ -24,10 +24,13 @@ int isl_band_has_children(__isl_keep isl_band *band);
 __isl_give isl_band_list *isl_band_get_children(
 	__isl_keep isl_band *band);
 
+__isl_export
 __isl_give isl_union_map *isl_band_get_prefix_schedule(
 	__isl_keep isl_band *band);
+__isl_export
 __isl_give isl_union_map *isl_band_get_partial_schedule(
 	__isl_keep isl_band *band);
+__isl_export
 __isl_give isl_union_map *isl_band_get_suffix_schedule(
 	__isl_keep isl_band *band);
 
