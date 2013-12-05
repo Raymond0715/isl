@@ -25,6 +25,7 @@ private:
 	void print_constructor(const isl_class &clazz, FunctionDecl *method);
 	void print_method(const isl_class &clazz, FunctionDecl *method,
 			  bool subclass, string super);
+	void print_enum(const isl_enum &e);
 
 	/* Redirect calls to "printf" in the print* methods to the
 	 * output stream "os"
