@@ -353,8 +353,9 @@ void python_generator::print(const isl_class &clazz)
 }
 
 python_generator::python_generator(set<RecordDecl *> &types,
-				   set<FunctionDecl *> &functions)
-    : generator(types, functions), os(outputfile("isl.py"))
+				   set<FunctionDecl *> &functions,
+				   set<EnumDecl *> &enums)
+    : generator(types, functions, enums), os(outputfile("isl.py"))
 {
 }
 
