@@ -209,6 +209,13 @@ bool generator::takes(Decl *decl)
 	return has_annotation(decl, "isl_take");
 }
 
+/* Is decl marked as producing a reference?
+ */
+bool generator::gives(Decl *decl)
+{
+	return has_annotation(decl, "isl_give");
+}
+
 /*
  * A few functions do not follow the usual naming scheme
  * isl_(class)_(fun). This array stores the exceptions
@@ -414,6 +421,15 @@ bool generator::is_callback_with_user(QualType type)
 		return false;
 
 	return pt->getPointeeType()->isVoidType();
+}
+
+bool generator::has_user_pointer(FunctionDecl *fd)
+{
+	int num_params = fd->getNumParams();
+	if (num_params == 0)
+		return false;
+	QualType lastArgTy = fd->getParamDecl(num_params-1)->getOriginalType();
+	return lastArgTy->isPointerType() && lastArgTy->getPointeeType()->isVoidType();
 }
 
 /* Get the isl_enum that is associated to the given type.

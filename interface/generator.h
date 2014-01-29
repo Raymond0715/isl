@@ -75,6 +75,7 @@ protected:
 	bool is_subclass(RecordDecl *decl, string &super);
 	bool is_constructor(Decl *decl);
 	bool takes(Decl *decl);
+	bool gives(Decl *decl);
 	isl_class &method2class(map<string, isl_class> &classes,
 				FunctionDecl *fd);
 	bool is_isl_ctx(QualType type);
@@ -89,6 +90,7 @@ protected:
 	string extract_type(QualType type);
 	bool is_isl_result_argument(QualType type);
 	bool is_callback_with_user(QualType type);
+	bool has_user_pointer(FunctionDecl *fd);
 
 	const isl_enum &find_enum(QualType type);
 

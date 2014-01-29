@@ -70,6 +70,7 @@
 
 #include "extract_interface.h"
 #include "generator.h"
+#include "java.h"
 #include "python.h"
 
 using namespace std;
@@ -405,6 +406,9 @@ int main(int argc, char *argv[])
 	if (Language.compare("python") == 0)
 		gen = new python_generator(consumer.types, consumer.functions,
 					   consumer.enums);
+	else if (Language.compare("java") == 0)
+		gen = new java_generator(consumer.types, consumer.functions,
+					 consumer.enums);
 	else {
 		cerr << "Language '" << Language << "' not recognized." << endl
 		     << "Not generating bindings." << endl;
