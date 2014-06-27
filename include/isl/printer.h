@@ -32,9 +32,19 @@ __isl_give isl_printer *isl_printer_indent(__isl_take isl_printer *p,
 #define ISL_FORMAT_C			4
 #define ISL_FORMAT_LATEX		5
 #define ISL_FORMAT_EXT_POLYLIB		6
+
+enum __isl_export isl_format {
+	isl_format_isl = ISL_FORMAT_ISL,
+	isl_format_polylib = ISL_FORMAT_POLYLIB,
+	isl_format_polylib_constraints = ISL_FORMAT_POLYLIB_CONSTRAINTS,
+	isl_format_omega = ISL_FORMAT_OMEGA,
+	isl_format_c = ISL_FORMAT_C,
+	isl_format_latex = ISL_FORMAT_LATEX,
+	isl_format_ext_polylib = ISL_FORMAT_EXT_POLYLIB
+};
 __isl_give isl_printer *isl_printer_set_output_format(__isl_take isl_printer *p,
-	int output_format);
-int isl_printer_get_output_format(__isl_keep isl_printer *p);
+	enum isl_format output_format);
+enum isl_format isl_printer_get_output_format(__isl_keep isl_printer *p);
 
 #define ISL_YAML_STYLE_BLOCK		0
 #define ISL_YAML_STYLE_FLOW		1
