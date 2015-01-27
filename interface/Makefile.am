@@ -24,13 +24,19 @@ extract_interface_LDADD = \
 
 CLEANFILES = isl.py
 
+.PHONY: test
 test: extract_interface
 	./extract_interface$(EXEEXT) $(includes) $(srcdir)/all.h
 
 isl.py: extract_interface isl.py.top
-	(cat $(srcdir)/isl.py.top; \
-		./extract_interface$(EXEEXT) $(includes) $(srcdir)/all.h) \
-			> isl.py
+	./extract_interface$(EXEEXT) $(includes) $(srcdir)/all.h \
+		--output-dir=python --language=python
+	cat isl.py.top python/isl.py > isl.py
+
+.PHONY: clean
+clean:
+	$(RM) -rf python
+	$(RM) -f isl.py
 
 dist-hook: isl.py
 	cp isl.py $(distdir)/

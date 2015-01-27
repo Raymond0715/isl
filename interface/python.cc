@@ -388,3 +388,4 @@ void python_generator::printf(const char *fmt, ...)
 	fclose(f);
 	os << ptr;
 }
+
