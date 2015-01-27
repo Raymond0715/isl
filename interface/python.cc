@@ -34,6 +34,7 @@
 #include "isl_config.h"
 
 #include <stdio.h>
+#include <stdarg.h>
 #include <iostream>
 #include <map>
 #include "python.h"
@@ -53,7 +54,7 @@ static string type2python(string name)
  * If any exception is thrown, the wrapper keeps track of it in exc_info[0]
  * and returns -1.  Otherwise the wrapper returns 0.
  */
-static void print_callback(QualType type, int arg)
+void python_generator::print_callback(QualType type, int arg)
 {
 	const FunctionProtoType *fn = type->getAs<FunctionProtoType>();
 	unsigned n_arg = fn->getNumArgs();
@@ -114,10 +115,12 @@ static void print_callback(QualType type, int arg)
  * If the function consumes a reference, then we pass it a copy of
  * the actual argument.
  */
-void isl_class::print_method(FunctionDecl *method, bool subclass, string super)
+void python_generator::print_method(const isl_class &clazz,
+				    FunctionDecl *method, bool subclass,
+				    string super)
 {
 	string fullname = method->getName();
-	string cname = fullname.substr(name.length() + 1);
+	string cname = fullname.substr(clazz.name.length() + 1);
 	int num_params = method->getNumParams();
 	int drop_user = 0;
 
@@ -166,7 +169,7 @@ void isl_class::print_method(FunctionDecl *method, bool subclass, string super)
 	}
 	printf("        res = isl.%s(", fullname.c_str());
 	if (takes(method->getParamDecl(0)))
-		printf("isl.%s_copy(arg0.ptr)", name.c_str());
+		printf("isl.%s_copy(arg0.ptr)", clazz.name.c_str());
 	else
 		printf("arg0.ptr");
 	for (int i = 1; i < num_params - drop_user; ++i) {
@@ -208,10 +211,11 @@ void isl_class::print_method(FunctionDecl *method, bool subclass, string super)
  * If the function consumes a reference, then we pass it a copy of
  * the actual argument.
  */
-void isl_class::print_constructor(FunctionDecl *cons)
+void python_generator::print_constructor(const isl_class &clazz,
+					 FunctionDecl *cons)
 {
 	string fullname = cons->getName();
-	string cname = fullname.substr(name.length() + 1);
+	string cname = fullname.substr(clazz.name.length() + 1);
 	int num_params = cons->getNumParams();
 	int drop_ctx = first_arg_is_isl_ctx(cons);
 
@@ -267,15 +271,16 @@ void isl_class::print_constructor(FunctionDecl *cons)
  * constructor functions and the return types of those function returning
  * an isl object.
  */
-void isl_class::print(map<string, isl_class> &classes, set<string> &done)
+void python_generator::print(const isl_class &clazz)
 {
+	const string &name = clazz.name;
 	string super;
 	string p_name = type2python(name);
 	set<FunctionDecl *>::iterator in;
-	bool subclass = is_subclass(type, super);
+	bool subclass = is_subclass(clazz.type, super);
 
 	if (subclass && done.find(super) == done.end())
-		classes[super].print(classes, done);
+		print(classes[super]);
 	done.insert(name);
 
 	printf("\n");
@@ -290,8 +295,9 @@ void isl_class::print(map<string, isl_class> &classes, set<string> &done)
 	printf("            self.ptr = keywords[\"ptr\"]\n");
 	printf("            return\n");
 
-	for (in = constructors.begin(); in != constructors.end(); ++in)
-		print_constructor(*in);
+	for (in = clazz.constructors.begin(); in != clazz.constructors.end();
+	     ++in)
+		print_constructor(clazz, *in);
 	printf("        raise Error\n");
 	printf("    def __del__(self):\n");
 	printf("        if hasattr(self, 'ptr'):\n");
@@ -305,11 +311,12 @@ void isl_class::print(map<string, isl_class> &classes, set<string> &done)
 	printf("        return 'isl.%s(\"%%s\")' %% str(self)\n",
 	       p_name.c_str());
 
-	for (in = methods.begin(); in != methods.end(); ++in)
-		print_method(*in, subclass, super);
+	for (in = clazz.methods.begin(); in != clazz.methods.end(); ++in)
+		print_method(clazz, *in, subclass, super);
 
 	printf("\n");
-	for (in = constructors.begin(); in != constructors.end(); ++in) {
+	for (in = clazz.constructors.begin(); in != clazz.constructors.end();
+	     ++in) {
 		string fullname = (*in)->getName();
 		printf("isl.%s.restype = c_void_p\n", fullname.c_str());
 		printf("isl.%s.argtypes = [", fullname.c_str());
@@ -329,7 +336,7 @@ void isl_class::print(map<string, isl_class> &classes, set<string> &done)
 		}
 		printf("]\n");
 	}
-	for (in = methods.begin(); in != methods.end(); ++in) {
+	for (in = clazz.methods.begin(); in != clazz.methods.end(); ++in) {
 		string fullname = (*in)->getName();
 		if (is_isl_type((*in)->getReturnType()))
 			printf("isl.%s.restype = c_void_p\n", fullname.c_str());
@@ -339,38 +346,45 @@ void isl_class::print(map<string, isl_class> &classes, set<string> &done)
 	printf("isl.%s_to_str.restype = POINTER(c_char)\n", name.c_str());
 }
 
+python_generator::python_generator(set<RecordDecl *> &types,
+				   set<FunctionDecl *> &functions)
+    : generator(types, functions), os(outputfile("isl.py"))
+{
+}
+
 /* Generate a python interface based on the extracted types and functions.
- * We first collect all functions that belong to a certain type,
- * separating constructors from regular methods.
  *
- * Then we print out each class in turn.  If one of these is a subclass
+ * We print out each class in turn.  If one of these is a subclass
  * of some other class, it will make sure the superclass is printed out first.
  */
-void generate_python(set<RecordDecl *> &types, set<FunctionDecl *> functions)
+void python_generator::generate()
 {
-	map<string, isl_class> classes;
 	map<string, isl_class>::iterator ci;
-	set<string> done;
-
-	set<RecordDecl *>::iterator it;
-	for (it = types.begin(); it != types.end(); ++it) {
-		RecordDecl *decl = *it;
-		string name = decl->getName();
-		classes[name].name = name;
-		classes[name].type = decl;
-	}
-
-	set<FunctionDecl *>::iterator in;
-	for (in = functions.begin(); in != functions.end(); ++in) {
-		isl_class &c = method2class(classes, *in);
-		if (is_constructor(*in))
-			c.constructors.insert(*in);
-		else
-			c.methods.insert(*in);
-	}
+	done.clear();
 
 	for (ci = classes.begin(); ci != classes.end(); ++ci) {
 		if (done.find(ci->first) == done.end())
-			ci->second.print(classes, done);
+			print(ci->second);
 	}
+}
+
+/* The print* methods call "printf". Intercept these
+ * calls here and forward the strings printed to
+ * the output stream for the generated file.
+ */
+void python_generator::printf(const char *fmt, ...)
+{
+	va_list ap;
+	char *ptr;
+	size_t size;
+	FILE *f = open_memstream(&ptr, &size);
+
+	if (f == NULL) {
+		cerr << "Oops, could not open memstream." << endl;
+		exit(1);
+	}
+	va_start(ap, fmt);
+	vfprintf(f, fmt, ap);
+	fclose(f);
+	os << ptr;
 }
