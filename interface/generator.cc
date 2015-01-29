@@ -185,6 +185,11 @@ isl_class &generator::method2class(map<string, isl_class> &classes,
 			best = ci->first;
 	}
 
+	if (best.length() == 0)
+		cerr << "Cannot find class for method '" << name << "'."
+		     << endl;
+	assert(best.length() > 0);
+
 	return classes[best];
 }
 
