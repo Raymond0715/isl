@@ -196,9 +196,12 @@ void python_generator::print_method(const isl_class &clazz,
 		print_callback(type->getPointeeType(), i);
 	}
 	printf("        res = isl.%s(", fullname.c_str());
-	if (takes(method->getParamDecl(0)))
-		printf("isl.%s_copy(arg0.ptr)", clazz.name.c_str());
-	else
+	if (takes(method->getParamDecl(0))) {
+		if (clazz.name.compare("isl_printer") == 0)
+			printf("arg0.makePtr0()");
+		else
+			printf("isl.%s_copy(arg0.ptr)", clazz.name.c_str());
+	} else
 		printf("arg0.ptr");
 	for (int i = 1; i < num_params - drop_user; ++i) {
 		ParmVarDecl *param = method->getParamDecl(i);
@@ -346,14 +349,23 @@ void python_generator::print(const isl_class &clazz)
 	printf("    def __del__(self):\n");
 	printf("        if hasattr(self, 'ptr'):\n");
 	printf("            isl.%s_free(self.ptr)\n", name.c_str());
-	printf("    def __str__(self):\n");
-	printf("        ptr = isl.%s_to_str(self.ptr)\n", name.c_str());
-	printf("        res = str(cast(ptr, c_char_p).value)\n");
-	printf("        libc.free(ptr)\n");
-	printf("        return res\n");
-	printf("    def __repr__(self):\n");
-	printf("        return 'isl.%s(\"%%s\")' %% str(self)\n",
-	       p_name.c_str());
+	if (can_be_printed(clazz)) {
+		printf("    def __str__(self):\n");
+		printf("        p = isl.isl_printer_to_str(self.ctx);\n");
+		printf("        p = isl.isl_printer_print_%s(p, self.ptr)\n",
+		       p_name.c_str());
+		printf("	ptr = isl.isl_printer_get_str(p);\n");
+		printf("        res = str(cast(ptr, c_char_p).value)\n");
+		printf("        libc.free(ptr)\n");
+		printf("        return res\n");
+		printf("    def __repr__(self):\n");
+		printf("        return 'isl.%s(\"%%s\")' %% str(self)\n",
+		       p_name.c_str());
+	}
+	printf("    def makePtr0(self):\n");
+	printf("        ptr = self.ptr;\n");
+	printf("        delattr(self, 'ptr');\n");
+	printf("        return ptr;\n");
 
 	for (in = clazz.methods.begin(); in != clazz.methods.end(); ++in)
 		print_method(clazz, *in, subclass, super);
@@ -390,8 +402,6 @@ void python_generator::print(const isl_class &clazz)
 			       fullname.c_str());
 	}
 	printf("isl.%s_free.argtypes = [c_void_p]\n", name.c_str());
-	printf("isl.%s_to_str.argtypes = [c_void_p]\n", name.c_str());
-	printf("isl.%s_to_str.restype = POINTER(c_char)\n", name.c_str());
 }
 
 python_generator::python_generator(set<RecordDecl *> &types,

@@ -370,3 +370,24 @@ const isl_enum &generator::find_enum(QualType type) {
 	assert(is_isl_enum(type));
 	return enums.at(extract_type(type));
 }
+
+/* Check if there is an isl_printer_print_* method for an isl class
+ */
+bool generator::can_be_printed(const isl_class &clazz) const {
+	map<string,isl_class>::const_iterator it = classes.find("isl_printer");
+	if (it == classes.end())
+		return false;
+
+	const string print_method =
+	    string("isl_printer_print") + clazz.name.substr(3);
+
+	const set<FunctionDecl *> &s = it->second.methods;
+	set<FunctionDecl *>::const_iterator fit, fend = s.end();
+	for (fit=s.begin(); fit!=fend; ++fit) {
+		FunctionDecl *f = *fit;
+		if (f->getName() == print_method)
+			return true;
+	}
+
+	return false;
+}

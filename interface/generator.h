@@ -77,6 +77,9 @@ protected:
 	bool is_callback_with_user(QualType type);
 
 	const isl_enum &find_enum(QualType type);
+
+	// Check if there is an isl_printer_print_* method for an isl class
+	bool can_be_printed(const isl_class &clazz) const;
 };
 
 #endif
