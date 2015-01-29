@@ -44,8 +44,10 @@ enum __isl_export isl_format {
 	isl_format_latex = ISL_FORMAT_LATEX,
 	isl_format_ext_polylib = ISL_FORMAT_EXT_POLYLIB
 };
+__isl_export
 __isl_give isl_printer *isl_printer_set_output_format(__isl_take isl_printer *p,
 	enum isl_format output_format);
+__isl_export
 enum isl_format isl_printer_get_output_format(__isl_keep isl_printer *p);
 
 #define ISL_YAML_STYLE_BLOCK		0
