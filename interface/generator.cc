@@ -54,12 +54,36 @@ generator::generator(set<RecordDecl *> &types, set<FunctionDecl *> &functions,
 
 	set<FunctionDecl *>::iterator in;
 	for (in = functions.begin(); in != functions.end(); ++in) {
-		isl_class &c = method2class(classes, *in);
-
-		if (is_constructor(*in))
-			c.constructors.insert(*in);
-		else
-			c.methods.insert(*in);
+		FunctionDecl *fdecl = *in;
+		isl_class &c = method2class(classes, fdecl);
+		if (is_constructor(fdecl)) {
+			QualType t = fdecl->getReturnType();
+			if (!is_isl_class(t) || extract_type(t) != c.name) {
+				cerr << "Warning: constuctor '"
+				     << fdecl->getNameAsString()
+				     << "' does not return object of expected "
+					"class '" << c.name << "'." << endl;
+			}
+			c.constructors.insert(fdecl);
+		} else {
+			unsigned n_params = fdecl->getNumParams();
+			bool no_this = false;
+			if (n_params == 0)
+				no_this = true;
+			if (n_params >= 1) {
+				QualType t =
+				    fdecl->getParamDecl(0)->getOriginalType();
+				if (!is_isl_class(t) ||
+				    extract_type(t) != c.name)
+					no_this = true;
+			}
+			if (no_this)
+				cerr << "Warning: method '"
+				     << fdecl->getNameAsString()
+				     << "' does not have suitable first "
+					"argument (for 'this')." << endl;
+			c.methods.insert(fdecl);
+		}
 	}
 
 	set<EnumDecl *>::const_iterator ie;
