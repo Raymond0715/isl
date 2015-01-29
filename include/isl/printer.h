@@ -8,16 +8,18 @@
 extern "C" {
 #endif
 
-struct isl_printer;
+struct __isl_export isl_printer;
 typedef struct isl_printer isl_printer;
 
 __isl_give isl_printer *isl_printer_to_file(isl_ctx *ctx, FILE *file);
+__isl_constructor
 __isl_give isl_printer *isl_printer_to_str(isl_ctx *ctx);
 __isl_null isl_printer *isl_printer_free(__isl_take isl_printer *printer);
 
 isl_ctx *isl_printer_get_ctx(__isl_keep isl_printer *printer);
 FILE *isl_printer_get_file(__isl_keep isl_printer *printer);
 
+__isl_export
 __isl_give char *isl_printer_get_str(__isl_keep isl_printer *printer);
 
 __isl_give isl_printer *isl_printer_set_indent(__isl_take isl_printer *p,

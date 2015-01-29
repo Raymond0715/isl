@@ -41,6 +41,7 @@ int isl_vec_cmp_element(__isl_keep isl_vec *vec1, __isl_keep isl_vec *vec2,
 	int pos);
 
 void isl_vec_dump(__isl_keep isl_vec *vec);
+__isl_export
 __isl_give isl_printer *isl_printer_print_vec(__isl_take isl_printer *printer,
 	__isl_keep isl_vec *vec);
 
