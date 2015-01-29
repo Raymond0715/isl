@@ -74,6 +74,16 @@ void python_generator::print_enum(const isl_enum &enu)
 	printf("\n");
 }
 
+/* Print a constructor with a named static method.
+ */
+bool python_generator::constructorShouldBeNamed(const isl_class &clazz,
+						FunctionDecl *cons)
+{
+	const string fullname = cons->getName();
+	return fullname.compare("isl_equality_alloc") == 0 ||
+		fullname.compare("isl_inequality_alloc") == 0;
+}
+
 /* Construct a wrapper for a callback argument (at position "arg").
  * Assign the wrapper to "cb".  We assume here that a function call
  * has at most one callback argument.
@@ -148,7 +158,7 @@ void python_generator::print_method(const isl_class &clazz,
 				    string super)
 {
 	string fullname = method->getName();
-	string cname = fullname.substr(clazz.name.length() + 1);
+	string cname = clazz.name_without_class(fullname);
 	int num_params = method->getNumParams();
 	int drop_user = 0;
 
@@ -244,20 +254,17 @@ void python_generator::print_method(const isl_class &clazz,
 	}
 }
 
-/* Print part of the constructor for this isl_class.
- *
- * In particular, check if the actual arguments correspond to the
- * formal arguments of "cons" and if so call "cons" and put the
- * result in self.ptr and a reference to the default context in self.ctx.
- *
- * If the function consumes a reference, then we pass it a copy of
- * the actual argument.
+/* Print the call to a constructor method.
+ * The printed code uses "ctxVar" to refer to the isl context
+ * and the result of the constructor invocation is stored in
+ * the variable named by "resultVar".
  */
-void python_generator::print_constructor(const isl_class &clazz,
-					 FunctionDecl *cons)
+void python_generator::print_constructor_call(const isl_class &clazz,
+					      FunctionDecl *cons,
+					      const string &ctxVar,
+					      const string &resultVar)
 {
 	string fullname = cons->getName();
-	string cname = fullname.substr(clazz.name.length() + 1);
 	int num_params = cons->getNumParams();
 	int drop_ctx = first_arg_is_isl_ctx(cons);
 
@@ -276,10 +283,9 @@ void python_generator::print_constructor(const isl_class &clazz,
 			       is_string(ty) ? "str" : "int");
 	}
 	printf(":\n");
-	printf("            self.ctx = Context.getDefaultInstance()\n");
-	printf("            self.ptr = isl.%s(", fullname.c_str());
+	printf("            %s = isl.%s(", resultVar.c_str(), fullname.c_str());
 	if (drop_ctx)
-		printf("self.ctx");
+		printf("%s", ctxVar.c_str());
 	for (int i = drop_ctx; i < num_params; ++i) {
 		ParmVarDecl *param = cons->getParamDecl(i);
 		if (i)
@@ -299,7 +305,39 @@ void python_generator::print_constructor(const isl_class &clazz,
 			printf("args[%d]", i - drop_ctx);
 	}
 	printf(")\n");
+}
+
+/* Print part of the constructor for this isl_class.
+ *
+ * In particular, check if the actual arguments correspond to the
+ * formal arguments of "cons" and if so call "cons" and put the
+ * result in self.ptr and a reference to the default context in self.ctx.
+ *
+ * If the function consumes a reference, then we pass it a copy of
+ * the actual argument.
+ */
+void python_generator::print_constructor(const isl_class &clazz,
+					 FunctionDecl *cons)
+{
+	printf("        self.ctx = Context.getDefaultInstance()\n");
+	print_constructor_call(clazz, cons, "self.ctx", "self.ptr");
 	printf("            return\n");
+}
+
+/* Print a constructor as a named static method. */
+void python_generator::print_named_constructor(const isl_class &clazz,
+					       FunctionDecl *cons)
+{
+	const string fullname = cons->getName();
+	const string cname = clazz.name_without_class(fullname);
+	const string p_name = type2python(clazz.name);
+
+	printf("    @staticmethod\n");
+	printf("    def %s(*args):\n", cname.c_str());
+	printf("        ctx = Context.getDefaultInstance()\n");
+	print_constructor_call(clazz, cons, "ctx", "ptr");
+	printf("            return %s(ctx=ctx,ptr=ptr)\n", p_name.c_str());
+	printf("        raise Error\n");
 }
 
 /* Print out the definition of this isl_class.
@@ -343,8 +381,10 @@ void python_generator::print(const isl_class &clazz)
 	printf("            return\n");
 
 	for (in = clazz.constructors.begin(); in != clazz.constructors.end();
-	     ++in)
-		print_constructor(clazz, *in);
+	     ++in) {
+		if (!constructorShouldBeNamed(clazz, *in))
+			print_constructor(clazz, *in);
+	}
 	printf("        raise Error\n");
 	printf("    def __del__(self):\n");
 	printf("        if hasattr(self, 'ptr'):\n");
@@ -366,6 +406,12 @@ void python_generator::print(const isl_class &clazz)
 	printf("        ptr = self.ptr;\n");
 	printf("        delattr(self, 'ptr');\n");
 	printf("        return ptr;\n");
+
+	for (in = clazz.constructors.begin(); in != clazz.constructors.end();
+	     ++in) {
+		if (constructorShouldBeNamed(clazz, *in))
+			print_named_constructor(clazz, *in);
+	}
 
 	for (in = clazz.methods.begin(); in != clazz.methods.end(); ++in)
 		print_method(clazz, *in, subclass, super);

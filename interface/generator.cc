@@ -38,6 +38,21 @@
 #include "extract_interface.h"
 #include "generator.h"
 
+string isl_class::name_without_class(const string &methodname) const
+{
+	string::size_type len = this->name.length();
+	if (methodname.length() > len &&
+	    this->name.compare(methodname.substr(0, len)) == 0)
+		return methodname.substr(len+1);
+	else if (methodname.substr(0,4).compare("isl_") == 0)
+		return methodname.substr(4);
+
+	cerr << "Could not derive method name for '" << methodname
+	     << "' in class '" << this->name << endl << "'.";
+	exit(1);
+}
+
+
 /* Collect all functions that belong to a certain type,
  * separating constructors from regular methods and collect all enums.
  */
@@ -194,8 +209,23 @@ bool generator::takes(Decl *decl)
 	return has_annotation(decl, "isl_take");
 }
 
-/* Return the class that has a name that matches the initial part
- * of the namd of function "fd".
+/*
+ * A few functions do not follow the usual naming scheme
+ * isl_(class)_(fun). This array stores the exceptions
+ * we allow.
+ */
+static struct
+{
+	const char *fun_name;
+	const char *class_name;
+} explicit_class_mappings[] = {{"isl_equality_alloc", "isl_constraint"},
+			       {"isl_inequality_alloc", "isl_constraint"}};
+static const int n_explicit_class_mappings =
+    sizeof(explicit_class_mappings) / sizeof(*explicit_class_mappings);
+
+/* Return the class the function "fd" belongs to.
+ * Derive the class from the function name if the functions is not
+ * listed in the explicit mapping from function names to classes.
  */
 isl_class &generator::method2class(map<string, isl_class> &classes,
 	FunctionDecl *fd)
@@ -203,6 +233,23 @@ isl_class &generator::method2class(map<string, isl_class> &classes,
 	string best;
 	map<string, isl_class>::iterator ci;
 	string name = fd->getNameAsString();
+
+	for (unsigned i=0; i<n_explicit_class_mappings; ++i) {
+		if (name.compare(explicit_class_mappings[i].fun_name) == 0) {
+			const string class_name =
+			    explicit_class_mappings[i].class_name;
+			map<string, isl_class>::iterator it =
+			    classes.find(class_name);
+			if (it == classes.end()) {
+				cerr << "Cannot map function '" << name
+				     << "' into " << endl << "class '"
+				     << class_name << "' which is not exported."
+				     << endl;
+				exit(1);
+			}
+			return it->second;
+		}
+	}
 
 	for (ci = classes.begin(); ci != classes.end(); ++ci) {
 		if (name.substr(0, ci->first.length()) == ci->first)

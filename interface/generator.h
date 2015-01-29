@@ -25,6 +25,19 @@ struct isl_class {
 	RecordDecl *type;
 	set<FunctionDecl *> constructors;
 	set<FunctionDecl *> methods;
+
+	/* Return the a method name with the class prefix stripped,
+	 * e.g., "isl_set_intersect" becomes "intersect" for class
+	 * "isl_set". When the class name is not a prefix of the
+	 * method name, only "isl_" is stripped.
+	 *
+	 * This is needed for "isl_equality_alloc" and "isl_inequality_alloc" in
+	 * class "isl_constraint"
+	 *
+	 * (see also the list of exceptions to the usual naming scheme at
+	 * generator::method2class()).
+	 */
+	string name_without_class(const string &methodname) const;
 };
 
 struct isl_enum {
