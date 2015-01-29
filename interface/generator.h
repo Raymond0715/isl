@@ -74,6 +74,7 @@ protected:
 	bool is_isl_enum(QualType type);
 	string extract_type(QualType type);
 	bool is_isl_result_argument(QualType type);
+	bool is_callback_with_user(QualType type);
 
 	const isl_enum &find_enum(QualType type);
 };

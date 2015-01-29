@@ -309,6 +309,30 @@ bool generator::is_isl_result_argument(QualType type)
 	return type->isPointerType() && is_isl_class(type->getPointeeType());
 }
 
+/* Is 'type' a callback with user argument as the
+ * last parameter (i.e. "..(*fn)(..., void *)")?
+ */
+bool generator::is_callback_with_user(QualType type)
+{
+	if (!type->isPointerType())
+		return false;
+	type = type->getPointeeType();
+	const PointerType *pft = dyn_cast<PointerType>(type.getCanonicalType());
+	if (!pft)
+		return false;
+	const FunctionProtoType *ft =
+	    dyn_cast<FunctionProtoType>(pft->getPointeeType());
+	unsigned n_parms = ft->getNumArgs();
+	if (n_parms == 0)
+		return false;
+	const PointerType *pt =
+			dyn_cast<PointerType>(ft->getArgType(n_parms-1));
+	if (!pt)
+		return false;
+
+	return pt->getPointeeType()->isVoidType();
+}
+
 /* Get the isl_enum that is associated to the given type.
  */
 const isl_enum &generator::find_enum(QualType type) {
