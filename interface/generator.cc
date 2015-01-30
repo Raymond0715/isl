@@ -459,3 +459,7 @@ bool generator::can_be_printed(const isl_class &clazz) const {
 
 	return false;
 }
+
+bool generator::is_inplace(const isl_class &clazz) const {
+	return has_annotation(clazz.type, "isl_inplace");
+}
