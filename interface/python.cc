@@ -227,6 +227,10 @@ void python_generator::print_method(const isl_class &clazz,
 		type = type2python(extract_type(method->getReturnType()));
 		printf("        return %s(ctx=arg0.ctx, ptr=res)\n",
 			type.c_str());
+	} else if (is_string(rettype)) {
+		printf("        strres = str(cast(res, c_char_p).value)\n");
+		printf("        libc.free(res)\n");
+		printf("        return strres\n");
 	} else {
 		if (drop_user) {
 			printf("        if exc_info[0] != None:\n");
@@ -257,14 +261,16 @@ void python_generator::print_constructor(const isl_class &clazz,
 	printf("        if len(args) == %d", num_params - drop_ctx);
 	for (int i = drop_ctx; i < num_params; ++i) {
 		ParmVarDecl *param = cons->getParamDecl(i);
-		if (is_isl_type(param->getOriginalType())) {
+		QualType ty = param->getOriginalType();
+		if (is_isl_type(ty)) {
 			string type;
 			type = extract_type(param->getOriginalType());
 			type = type2python(type);
 			printf(" and args[%d].__class__ is %s",
 				i - drop_ctx, type.c_str());
 		} else
-			printf(" and type(args[%d]) == str", i - drop_ctx);
+			printf(" and type(args[%d]) == %s", i - drop_ctx,
+			       is_string(ty) ? "str" : "int");
 	}
 	printf(":\n");
 	printf("            self.ctx = Context.getDefaultInstance()\n");
@@ -376,8 +382,12 @@ void python_generator::print(const isl_class &clazz)
 	}
 	for (in = clazz.methods.begin(); in != clazz.methods.end(); ++in) {
 		string fullname = (*in)->getName();
-		if (is_isl_type((*in)->getReturnType()))
+		QualType type = (*in)->getReturnType();
+		if (is_isl_type(type))
 			printf("isl.%s.restype = c_void_p\n", fullname.c_str());
+		else if (is_string(type))
+			printf("isl.%s.restype = POINTER(c_char)\n",
+			       fullname.c_str());
 	}
 	printf("isl.%s_free.argtypes = [c_void_p]\n", name.c_str());
 	printf("isl.%s_to_str.argtypes = [c_void_p]\n", name.c_str());
