@@ -52,6 +52,11 @@ string isl_class::name_without_class(const string &methodname) const
 	exit(1);
 }
 
+bool isl_class::is_ctx() const
+{
+	return name.compare("isl_ctx") == 0;
+}
+
 
 /* Collect all functions that belong to a certain type,
  * separating constructors from regular methods and collect all enums.
@@ -88,7 +93,7 @@ generator::generator(set<RecordDecl *> &types, set<FunctionDecl *> &functions,
 			if (n_params >= 1) {
 				QualType t =
 				    fdecl->getParamDecl(0)->getOriginalType();
-				if (!is_isl_class(t) ||
+				if ((!is_isl_class(t) && !is_isl_ctx(t)) ||
 				    extract_type(t) != c.name)
 					no_this = true;
 			}
@@ -262,6 +267,10 @@ isl_class &generator::method2class(map<string, isl_class> &classes,
 		if (name.substr(0, ci->first.length()) == ci->first)
 			best = ci->first;
 	}
+
+	const string isloptions = "isl_options_";
+	if (name.substr(0, isloptions.length()) == isloptions)
+		best = "isl_ctx";
 
 	if (best.length() == 0)
 		cerr << "Cannot find class for method '" << name << "'."

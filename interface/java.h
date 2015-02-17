@@ -16,6 +16,7 @@ private:
 	void generateEnums();
 
 	void print_additional_val_methods(ostream &os);
+	void print_additional_ctx_methods(ostream &os);
 	void print_callback(ostream &os, QualType type, const string &arg);
 	void prepare_argument(ostream &os, const ParmVarDecl *param);
 	void print_argument(ostream &os, ParmVarDecl *param);

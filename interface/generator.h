@@ -38,6 +38,8 @@ struct isl_class {
 	 * generator::method2class()).
 	 */
 	string name_without_class(const string &methodname) const;
+
+	bool is_ctx() const;
 };
 
 struct isl_enum {

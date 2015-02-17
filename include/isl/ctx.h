@@ -90,7 +90,7 @@ typedef enum {
 	isl_bool_false = 0,
 	isl_bool_true = 1
 } isl_bool;
-struct isl_ctx;
+struct __isl_export isl_ctx;
 typedef struct isl_ctx isl_ctx;
 
 /* Some helper macros */
@@ -155,6 +155,7 @@ struct isl_options *isl_ctx_options(isl_ctx *ctx);
 
 isl_ctx *isl_ctx_alloc_with_options(struct isl_args *args,
 	__isl_take void *opt);
+__isl_constructor
 isl_ctx *isl_ctx_alloc(void);
 void *isl_ctx_peek_options(isl_ctx *ctx, struct isl_args *args);
 int isl_ctx_parse_options(isl_ctx *ctx, int argc, char **argv, unsigned flags);

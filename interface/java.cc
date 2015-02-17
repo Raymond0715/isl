@@ -246,7 +246,7 @@ string java_generator::paramtype2java(QualType type, bool wrapperTypes,
 		}
 	}
 
-	return paramtype2jna(type, wrapperTypes, isBool);
+	return paramtype2jni(type, wrapperTypes, isBool);
 }
 
 /* Get the return type of the Java method corresponding
@@ -285,7 +285,7 @@ string java_generator::isl_ptr(const string &classname,
 		if (classname.compare("isl_printer") == 0)
 			os << "(" << expression << ").makePtr0()";
 		else {
-			os << "Impl.isl." << classname << "_copy(("
+			os << "Impl." << classname << "_copy(("
 			   << expression << ").getPtr())";
 		}
 	} else {
@@ -317,6 +317,26 @@ void java_generator::print_additional_val_methods(ostream &os)
 	   << endl << "       String[] s = toString().split(\"/\");" << endl
 	   << "       return new java.math.BigInteger(s.length == 2 ? s[1] : "
 	      "\"1\");" << endl << "    }" << endl;
+}
+
+void java_generator::print_additional_ctx_methods(ostream &os)
+{
+	os << "    private RuntimeException lastException = null;" << endl
+	   << "    void setException(RuntimeException e) {" << endl
+	   << "        if (lastException != null)" << endl
+	   << "            System.err.println(\"isl bindings warning: "
+	      "two exceptions in a row; exception not handled:\\n\" +"
+	   << endl << "                lastException.getMessage());"
+	   << endl << "        lastException = e;" << endl << "	   }"
+	   << endl << "    void checkError() {" << endl
+	   << "        RuntimeException e = lastException;" << endl
+	   << "        lastException = null;" << endl
+	   << "        if (Impl.isl_ctx_last_error(getPtr()) != 0) { // "
+	      "0 == isl_error_none" << endl
+	   << "            Impl.isl_ctx_reset_error(getPtr());" << endl
+	   << "            e = new IslException(\"isl error\", e);"
+	   << endl << "        }" << endl << "        if (e != null)"
+	   << endl << "            throw e;" << endl << "     }" << endl;
 }
 
 /* Construct a wrapper for a callback argument (at position "arg").
@@ -537,7 +557,8 @@ void java_generator::print_method(ostream &os, isl_class &clazz,
 	if (!is_void)
 		os << "        " << rettype2jni(method) << " res;" << endl;
 
-	os << "        synchronized(this.ctx) {" << endl;
+	const string ctx = clazz.is_ctx() ? "this" : "this.ctx";
+	os << "        synchronized(" << ctx << ") {" << endl;
 
 	// Declare variable 'self' which represents 'this' but
 	// with the required isl type (i.e., possibly a super type
@@ -566,7 +587,7 @@ void java_generator::print_method(ostream &os, isl_class &clazz,
 		const ParmVarDecl *param = method->getParamDecl(i);
 		handle_result_argument(os, "this.ctx", param);
 	}
-	os << "            this.ctx.checkError();" << endl << "        }"
+	os << "            " << ctx << ".checkError();" << endl << "        }"
 	   << endl;
 
 	handle_return(os, method, "res");
@@ -766,6 +787,7 @@ void java_generator::print_constructor(ostream &os, isl_class &clazz,
 	int ctxArg = -1, ctxSrc = -1;
 	int num_params = cons->getNumParams();
 	int drop_user = has_user_pointer(cons) ? 1 : 0;
+	int is_ctx = jclass.compare("Ctx") == 0;
 
 	if (!asNamedConstructor)
 		os << "    // " << fullname << endl;
@@ -788,8 +810,9 @@ void java_generator::print_constructor(ostream &os, isl_class &clazz,
 	}
 
 	// When there is no isl class argument that can give us the
-	// isl context, there must be an explicit isl context argument.
-	if (ctxSrc == -1 && ctxArg == -1) {
+	// isl context, there must be an explicit isl context argument
+	// (except when the class is "isl_ctx", i.e. noCtx==true).
+	if (!is_ctx && ctxSrc == -1 && ctxArg == -1) {
 		cerr << "Cannot generate binding for '" << fullname
 		     << "':" << endl << "  no context argument and no argument "
 					"to take the context from." << endl;
@@ -818,17 +841,23 @@ void java_generator::print_constructor(ostream &os, isl_class &clazz,
 		   << "();" << endl;
 	}
 
-	if (ctxSrc >= 0) {
-		os << "        " << obj
-		   << ".ctx = " << cons->getParamDecl(ctxSrc)->getNameAsString()
-		   << ".ctx;" << endl;
-	} else {
-		os << "        " << obj
-		   << ".ctx = " << cons->getParamDecl(ctxArg)->getNameAsString()
-		   << ";" << endl;
+	if (!is_ctx) {
+		if (ctxSrc >= 0) {
+			os << "        " << obj
+			   << ".ctx = " << cons->getParamDecl(ctxSrc)->getNameAsString()
+			   << ".ctx;" << endl;
+		} else {
+			os << "        " << obj
+			   << ".ctx = " << cons->getParamDecl(ctxArg)->getNameAsString()
+			   << ";" << endl;
+		}
 	}
 
-	os << "        synchronized(" << obj << ".ctx) {" << endl;
+	// Where to find the context, usually obj.ctx but
+	// when we handle isl_ctx, obj is itself the context.
+	const string ctx = is_ctx ? obj : obj+".ctx";
+
+	os << "        synchronized(" << ctx << ") {" << endl;
 	for (int i = 0; i < num_params-drop_user; ++i) {
 		if (i == ctxArg && ctxSrc >= 0)
 			continue;
@@ -857,10 +886,10 @@ void java_generator::print_constructor(ostream &os, isl_class &clazz,
 
 	for (int i = 0; i < num_params-drop_user; ++i) {
 		const ParmVarDecl *param = cons->getParamDecl(i);
-		handle_result_argument(os, obj + ".ctx", param);
+		handle_result_argument(os, ctx, param);
 	}
 
-	os << "            " << obj << ".ctx.checkError();" << endl
+	os << "            " << ctx << ".checkError();" << endl
 	   << "        }" << endl;
 
 	if (asNamedConstructor)
@@ -893,6 +922,7 @@ void java_generator::print_class(isl_class &clazz)
 	string p_name = type2java(name);
 	set<FunctionDecl *>::iterator in;
 	bool subclass = is_subclass(clazz.type, super);
+	bool is_ctx = clazz.is_ctx();
 
 	ostream &os = outputfile(packagePath + p_name + ".java");
 	os << commonHeader;
@@ -904,18 +934,21 @@ void java_generator::print_class(isl_class &clazz)
 	    subclass ? (type2java(super) + ".Ptr") : "Pointer";
 	os << getPtrTypeDecl(superPtr) << endl;
 	if (!subclass) {
-		os << "    protected Ctx ctx;" << endl;
-		os << "    protected Pointer ptr;" << endl;
+		if (clazz.name.compare("isl_ctx") != 0)
+			os << "    protected Ctx ctx;" << endl;
+		os << "    protected Ptr ptr;" << endl;
 	}
 
 	os << "    " << p_name << "() {}" << endl;
 
-	os << "    " << p_name << "(Ctx ctx, Pointer ptr) {" << endl
-	   << "        assert !ptr.isNULL();" << endl
-	   << "        this.ctx = ctx;" << endl << "        this.ptr = ptr;"
-	   << endl << "    }" << endl;
+	if (!is_ctx) {
+		os << "    " << p_name << "(Ctx ctx, Ptr ptr) {" << endl
+		   << "        assert !ptr.isNULL();" << endl
+		   << "        this.ctx = ctx;" << endl << "        this.ptr = ptr;"
+		   << endl << "    }" << endl;
 
-	os << "    public Ctx getCtx() { return ctx; }" << endl;
+		os << "    public Ctx getCtx() { return ctx; }" << endl;
+	}
 
 	os << "    " << p_name << ".Ptr getPtr() { return (" << p_name
 	   << ".Ptr)this.ptr; }" << endl;
@@ -937,10 +970,16 @@ void java_generator::print_class(isl_class &clazz)
 		print_constructor(os, clazz, *in, true);
 	}
 
-	os << "    protected void finalize() {" << endl
-	   << "        synchronized(this.ctx) {" << endl
-	   << "            Impl." << name << "_free(getPtr());" << endl
-	   << "        }" << endl << "    }" << endl;
+	// We do not free objects of classes that have in-place update
+	// (e.g., isl_band). These values exist only in dependence of
+	// parent objects and are freed when the parent object goes away.
+	if (!is_inplace(clazz)) {
+		os << "    protected void finalize() {" << endl
+		   << "        synchronized("
+		   << (is_ctx ? "this" : "this.ctx") << ") {" << endl
+		   << "            Impl." << name << "_free(getPtr());"
+		   << endl << "        }" << endl << "    }" << endl;
+	}
 
 	if (can_be_printed(clazz)) {
 		os << "    public String toString() {" << endl
@@ -983,9 +1022,13 @@ void java_generator::print_class(isl_class &clazz)
 	if (name.compare("isl_val") == 0)
 		print_additional_val_methods(os);
 
+	if (name.compare("isl_ctx") == 0)
+		print_additional_ctx_methods(os);
+
 	os << "}" << endl;
 
-	bool has_copy = name.compare("isl_schedule") != 0 && name.compare("isl_printer") != 0;
+	bool has_copy = name.compare("isl_schedule") != 0 && name.compare("isl_printer") != 0
+			&& !clazz.is_ctx();
 
 	// Add isl_* functions to Impl interface.
 	ostream &impl_os = outputfile(packagePath + "Impl.java");
@@ -1098,7 +1141,6 @@ void java_generator::generateClasses()
 	ostream &os_impl = outputfile(packagePath + "Impl.java");
 	os_impl << commonHeader << "class Impl {" << endl
 		<< "    static { System.loadLibrary(\"isl_jni\"); }" << endl
-		<< "    static native Ctx.Ptr isl_ctx_alloc();" << endl
 		<< "    static native int isl_ctx_last_error(Ctx.Ptr ctx);" << endl
 		<< "    static native void isl_ctx_reset_error(Ctx.Ptr ctx);" << endl;
 
@@ -1108,6 +1150,7 @@ void java_generator::generateClasses()
 	     << "    jobject cb;" << endl
 	     << "};" << endl;
 
+	/*
 	os_c << jnifn("isl_ctx_alloc", "jobject") << ") {"
 	     << "    jmethodID mid;" << endl
 	     << "    isl_ctx *ctx = isl_ctx_alloc();" << endl
@@ -1115,6 +1158,7 @@ void java_generator::generateClasses()
 	     << jniMkPtr("ctx", "isl_ctx", "octx")
 	     << "    return octx;" << endl
 	     << "}" << endl;
+	*/
 	os_c << jnifn("isl_ctx_last_error", "jint") << ", jobject octx) {"
 	     << "    jmethodID mid;" << endl
 	     << "    isl_ctx *ctx;" << endl
@@ -1137,35 +1181,6 @@ void java_generator::generateClasses()
 		   << endl << "    public IslException(String msg, Throwable "
 			      "cause) { super(msg, cause); }" << endl << "}"
 		   << endl;
-	}
-
-	{
-		ostream &os = outputfile(packagePath + "Ctx.java");
-		os << commonHeader << "public class Ctx {" << endl
-		   << getPtrTypeDecl("Pointer") << endl
-		   << "    private Ptr ctx;" << endl
-		   << "    private RuntimeException lastException;" << endl
-		   << "    private Ctx() { ctx = Impl.isl_ctx_alloc(); "
-		      "lastException = null; }" << endl
-		   << "    public static Ctx alloc() {" << endl
-		   << "        return new Ctx();" << endl << "    }" << endl
-		   << "    Ptr getPtr() { return ctx; }" << endl
-		   << "    void setException(RuntimeException e) {" << endl
-		   << "        if (lastException != null)" << endl
-		   << "            System.err.println(\"isl bindings warning: "
-		      "two exceptions in a row; exception not handled:\\n\" +"
-		   << endl << "                lastException.getMessage());"
-		   << endl << "	       lastException = e;" << endl << "	   }"
-		   << endl << "    void checkError() {" << endl
-		   << "	       RuntimeException e = lastException;" << endl
-		   << "        lastException = null;" << endl
-		   << "        if (Impl.isl_ctx_last_error(ctx) != 0) { // "
-		      "0 == isl_error_none" << endl
-		   << "            Impl.isl_ctx_reset_error(ctx);" << endl
-		   << "            e = new IslException(\"isl error\", e);"
-		   << endl << "        }" << endl << "        if (e != null)"
-		   << endl << "	           throw e;" << endl << "     }" << endl
-		   << "}" << endl;
 	}
 
 	map<string, isl_class>::iterator ci;
