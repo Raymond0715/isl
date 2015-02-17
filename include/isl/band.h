@@ -34,9 +34,13 @@ __isl_export
 __isl_give isl_union_map *isl_band_get_suffix_schedule(
 	__isl_keep isl_band *band);
 
+__isl_export
 isl_stat isl_options_set_tile_scale_tile_loops(isl_ctx *ctx, int val);
+__isl_export
 int isl_options_get_tile_scale_tile_loops(isl_ctx *ctx);
+__isl_export
 isl_stat isl_options_set_tile_shift_point_loops(isl_ctx *ctx, int val);
+__isl_export
 int isl_options_get_tile_shift_point_loops(isl_ctx *ctx);
 
 __isl_export
