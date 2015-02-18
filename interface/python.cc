@@ -358,6 +358,10 @@ void python_generator::print_named_constructor(const isl_class &clazz,
  */
 void python_generator::print(const isl_class &clazz)
 {
+	// We do not generate the isl_ctx class here (yet).
+	if (clazz.is_ctx())
+		return;
+
 	const string &name = clazz.name;
 	string super;
 	string p_name = type2python(name);
