@@ -39,13 +39,9 @@ static string name2camelcase(const string &name, bool startUpper)
 	return javaname;
 }
 
-static string enumval2java(const string &valname)
+static string enumval2java(const isl_enum &enu, const string &valname)
 {
-	size_t n = valname.find("_");
-	assert(n != string::npos);
-	n = valname.find("_", n + 1);
-	assert(n != string::npos);
-	return name2camelcase(valname.substr(n + 1), true);
+	return name2camelcase(enu.name_without_enum(valname), true);
 }
 
 /* Drop the "isl_" initial part of the type name "name".
@@ -480,7 +476,7 @@ void java_generator::handle_enum_return(ostream &os, const string &res,
 	map<string, int>::const_iterator it;
 	for (it = enu.values.begin(); it != enu.values.end(); ++it) {
 		os << "        case " << it->second << ": return "
-		   << type2java(enu.name) << "." << enumval2java(it->first)
+		   << type2java(enu.name) << "." << enumval2java(enu, it->first)
 		   << ";" << endl;
 	}
 	os << "        default: throw new IllegalStateException"
@@ -1199,7 +1195,7 @@ void java_generator::print_enum(const isl_enum &enu)
 	os << "public enum " << e_name << " {" << endl;
 	map<string, int>::const_iterator it;
 	for (it = enu.values.begin(); it != enu.values.end(); ++it) {
-		os << "    " << enumval2java(it->first) << "(" << it->second
+		os << "    " << enumval2java(enu, it->first) << "(" << it->second
 		   << ")," << endl;
 	}
 	os << "    ;" << endl << "    int value;" << endl << "    " << e_name
