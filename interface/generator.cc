@@ -472,3 +472,15 @@ bool generator::can_be_printed(const isl_class &clazz) const {
 bool generator::is_inplace(const isl_class &clazz) const {
 	return has_annotation(clazz.type, "isl_inplace");
 }
+
+/* We assume that enum values are name lik "isl_dim_all", "isl_fold_max", etc.,
+ * i.e., we can drop 2 underscores (for the "isl_" and the "dim_"/"fold_"/etc.
+ * prefixes).
+ */
+string isl_enum::name_without_enum(const string &valname) const {
+	size_t n = valname.find("_");
+	assert(n != string::npos);
+	n = valname.find("_", n + 1);
+	assert(n != string::npos);
+	return valname.substr(n + 1);
+}

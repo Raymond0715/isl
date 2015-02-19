@@ -45,6 +45,8 @@ struct isl_class {
 struct isl_enum {
 	string name;
 	map<string,int> values;
+
+	string name_without_enum(const string &valname) const;
 };
 
 /* Base class for interface generators.
