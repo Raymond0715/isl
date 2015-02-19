@@ -134,6 +134,21 @@ void python_generator::print_callback(QualType type, int arg)
 	printf("        cb = fn(cb_func)\n");
 }
 
+// Reserved words we cannot use as method names.
+static const char *keywords[] = {"and", "or", "print", 0};
+
+static string methodname2python(const isl_class &clazz,
+				const string &fullname) {
+	string pname = clazz.name_without_class(fullname);
+	for (const char **p = keywords; *p; ++p) {
+		if (pname.compare(*p) == 0) {
+			pname += "_";
+			break;
+		}
+	}
+	return pname;
+}
+
 /* Print a python method corresponding to the C function "method".
  * "subclass" is set if the method belongs to a class that is a subclass
  * of some other class ("super").
@@ -158,7 +173,7 @@ void python_generator::print_method(const isl_class &clazz,
 				    string super)
 {
 	string fullname = method->getName();
-	string cname = clazz.name_without_class(fullname);
+	string cname = methodname2python(clazz, fullname);
 	int num_params = method->getNumParams();
 	int drop_user = 0;
 
