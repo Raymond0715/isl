@@ -66,7 +66,7 @@ void python_generator::print_enum(const isl_enum &enu)
 
 	map<string,int>::const_iterator it, e = enu.values.end();
 	for (it	= enu.values.begin(); it != e; ++it) {
-		string name_str = type2python(it->first);
+		string name_str = enu.name_without_enum(it->first);
 		const char *name = name_str.c_str();
 		printf("%s.%s = %s(\"%s\",%d)\n", enum_name, name,
 		       enum_name, name, it->second);
