@@ -11,7 +11,8 @@ static const string packagePath = "isl/";
 static const string jniSrc = "isl_jni.c";
 static const string commonHeader =
     "package isl;\n"
-    "import isl.*;\n";
+    "import isl.*;\n"
+    "import java.lang.ref.ReferenceQueue;\n";
 
 static string name2camelcase(const string &name, bool startUpper)
 {
@@ -304,22 +305,34 @@ void java_generator::print_additional_val_methods(ostream &os)
 
 void java_generator::print_additional_ctx_methods(ostream &os)
 {
-	os << "    private RuntimeException lastException = null;" << endl
+	os << "    final void freeIslC() {" << endl
+	   << "        Reference<? extends Object> ref = null;" << endl
+	   << "        while ((ref = this.refQ.poll()) != null) {" << endl
+	   << "            DLnkdPhntmRef phRef = (DLnkdPhntmRef) ref;" << endl
+	   << "            phRef.freeCPtr();" << endl
+	   << "            phRef.remove();" << endl
+	   << "        }" << endl
+	   << "    }" << endl
+	   << "    private RuntimeException lastException = null;" << endl
 	   << "    void setException(RuntimeException e) {" << endl
 	   << "        if (lastException != null)" << endl
 	   << "            System.err.println(\"isl bindings warning: "
 	      "two exceptions in a row; exception not handled:\\n\" +"
-	   << endl << "                lastException.getMessage());"
-	   << endl << "        lastException = e;" << endl << "	   }"
-	   << endl << "    void checkError() {" << endl
+	   << endl << "                lastException.getMessage());" << endl
+	   << "        lastException = e;" << endl
+	   << "	   }" << endl
+	   << "    void checkError() {" << endl
 	   << "        RuntimeException e = lastException;" << endl
 	   << "        lastException = null;" << endl
 	   << "        if (Impl.isl_ctx_last_error(ptr) != 0) { // "
 	      "0 == isl_error_none" << endl
 	   << "            Impl.isl_ctx_reset_error(ptr);" << endl
 	   << "            e = new IslException(\"isl error\", e);"
-	   << endl << "        }" << endl << "        if (e != null)"
-	   << endl << "            throw e;" << endl << "     }" << endl;
+	   << endl
+	   << "        }" << endl
+	   << "        if (e != null)" << endl
+	   << "            throw e;" << endl
+	   << "     }" << endl;
 }
 
 /* Construct a wrapper for a callback argument (at position "arg").
@@ -530,6 +543,10 @@ void java_generator::print_method(ostream &os, isl_class &clazz,
 
 	const string ctx = clazz.is_ctx() ? "this" : "this.ctx";
 	os << "        synchronized(" << ctx << ") {" << endl;
+
+	// Look for already collected java wrapper objects and free connected
+	// isl structure.
+	os << "            " << ctx << ".freeIslC();" << endl;
 
 	// Declare variable 'self' which represents 'this' but
 	// with the required isl type (i.e., possibly a super type
@@ -824,6 +841,13 @@ void java_generator::print_constructor(ostream &os, isl_class &clazz,
 	}
 
 	os << "        synchronized(" << (is_ctx ? "Ctx.class" : ctx) << ") {" << endl;
+
+	if (!is_ctx) {
+		// Look for already collected java wrapper objects and free connected
+		// isl structure.
+		os << "            " << ctx << ".freeIslC();" << endl;
+	}
+
 	for (int i = 0; i < num_params-drop_user; ++i) {
 		if (i == ctxArg && ctxSrc >= 0)
 			continue;
@@ -896,38 +920,60 @@ void java_generator::print_class(isl_class &clazz)
 	bool subclass = is_subclass(clazz.type, super);
 	bool is_ctx = clazz.is_ctx();
 
+	// We do not free objects of classes that have in-place update
+	// (e.g., isl_band). These values exist only in dependence of
+	// parent objects and are freed when the parent object goes away.
+	bool must_be_freed = !is_inplace(clazz);
+
 	ostream &os = outputfile(packagePath + p_name + ".java");
 	os << commonHeader;
+	if (is_ctx)
+		os << "import java.lang.ref.Reference;" << endl;
 	os << "public class " << p_name;
 	if (subclass)
 		os << " extends " << type2java(super);
 	os << " {" << endl;
 	if (!subclass) {
-		if (!is_ctx)
-			os << "    protected Ctx ctx;" << endl;
+		if (is_ctx)
+			os << "    final ReferenceQueue<Object> refQ = new ReferenceQueue<Object>();" << endl
+			   << "    final DLnkdPhntmRef refList = DLnkdPhntmRef.createListDelims();" << endl;
+		else
+			os << "    final protected Ctx ctx;" << endl
+			   << "    final protected DLnkdPhntmRef ref;" << endl;
 		os << "    protected long ptr;" << endl;
 		if (is_ctx)
-			os << "    " << p_name << "(long ptr) {" << endl;
+			os << "    " << p_name << "(long cPtr) {" << endl;
 		else
-			os << "    " << p_name << "(Ctx ctx, long ptr) {" << endl;
-		os << "        assert ptr != 0L;" << endl;
-		if (!is_ctx)
+			os << "    " << p_name << "(Ctx ctx, long cPtr) {" << endl;
+		os << "        assert cPtr != 0L;" << endl;
+		if (!is_ctx) {
 			os << "        this.ctx = ctx;" << endl;
-		os << "        this.ptr = ptr;" << endl
+			if (must_be_freed)
+				os << "        this.ref = createPhRef(ctx, cPtr);" << endl
+				   << "        this.ref.setPointer(cPtr);" << endl
+				   << "        this.ref.insertAfter(ctx.refList);" << endl;
+			else
+				os << "        this.ref = null;" << endl;
+		}
+		os << "        this.ptr = cPtr;" << endl
 		   << "    }" << endl;
 		if (!is_ctx)
 		   os << "    public Ctx getCtx() { return ctx; }" << endl;
 	} else { // Ctx is not a subclass
-		os << "    " << p_name << "(Ctx ctx, long ptr) {" << endl
-		   << "        super(ctx, ptr);" << endl
+		os << "    " << p_name << "(Ctx ctx, long cPtr) {" << endl
+		   << "        super(ctx, cPtr);" << endl
 		   << "    }" << endl;
 	}
 
-	os << "    long makePtr0() { " << endl
-	   << "        long p = this.ptr;" << endl
-	   << "        this.ptr = 0L;" << endl
-	   << "        return p;" << endl
-	   << "    }" << endl;
+	if (!is_ctx)
+		os << "    long makePtr0() { " << endl
+		   << "        long p = this.ptr;" << endl
+		   << "        this.ptr = 0L;" << endl
+		   << "        if (this.ref.ptr != 0L)" << endl
+		   << "            this.ref.remove();" << endl
+		   << "        this.ref.ptr = 0L;" << endl
+		   << "        return p;" << endl
+		   << "    }" << endl;
 
 	for (in = clazz.constructors.begin(); in != clazz.constructors.end();
 	     ++in) {
@@ -941,15 +987,26 @@ void java_generator::print_class(isl_class &clazz)
 		print_method_jni(*in);
 	}
 
-	// We do not free objects of classes that have in-place update
-	// (e.g., isl_band). These values exist only in dependence of
-	// parent objects and are freed when the parent object goes away.
-	if (!is_inplace(clazz)) {
-		os << "    protected void finalize() {" << endl
-		   << "        synchronized(" << (is_ctx ? "this" : "this.ctx")
-		   << ") {" << endl
-		   << "            Impl." << name << "_free(ptr);" << endl
-		   << "        }" << endl << "    }" << endl;
+	if (must_be_freed) {
+		if (is_ctx)
+			os << "    protected void finalize() {" << endl
+			   << "        synchronized(this) {" << endl
+			   << "            this.freeIslC();" << endl
+			   << "            Impl." << name << "_free(ptr);" << endl
+			   << "        }" << endl
+			   << "    }" << endl;
+		else
+			os << "    private static final class FinalDLnkdPhntmRef extends DLnkdPhntmRef {" << endl
+			   << "        FinalDLnkdPhntmRef(Object referent, ReferenceQueue<? super Object> refQ) {" << endl
+			   << "            super(referent, refQ);" << endl
+			   << "        }" << endl
+			   << "        void freeCPtr() {" << endl
+			   << "            Impl." << name << "_free(ptr);" << endl
+			   << "        }" << endl
+			   << "    }" << endl
+			   << "    protected DLnkdPhntmRef createPhRef(Ctx ctx, long cPtr) {" << endl
+			   << "        return new FinalDLnkdPhntmRef(this, ctx.refQ);" << endl
+			   << "    }" << endl;
 	}
 
 	if (can_be_printed(clazz)) {
@@ -984,6 +1041,7 @@ void java_generator::print_class(isl_class &clazz)
 			}
 		}
 	}
+	os << endl;
 
 
 	for (in = clazz.methods.begin(); in != clazz.methods.end(); ++in)
