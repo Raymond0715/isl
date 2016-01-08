@@ -360,6 +360,11 @@ bool generator::is_isl_type(QualType type) {
 	return is_isl_class(type) || is_isl_enum(type);
 }
 
+bool generator::is_isl_bool(QualType type)
+{
+	return type.getAsString().compare("isl_bool") == 0;
+}
+
 /* check if it is an enum but not a typedef (i.e., of the form
  * "enum isl_xxx")
  */
