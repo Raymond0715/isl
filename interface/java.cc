@@ -931,14 +931,14 @@ void java_generator::print_class(isl_class &clazz)
 
 	for (in = clazz.constructors.begin(); in != clazz.constructors.end();
 	     ++in) {
-		// We always print a "named" constructor (i.e., a static
-		// function
-		// to construct an object).
-		// Some isl constructors could be made available as
-		// constructors of the generated class but for
-		// simplicity and consistency we only generate static
-		// member functions.
+		print_constructor(os, clazz, *in, false);
 		print_constructor(os, clazz, *in, true);
+		print_method_jni(*in);
+	}
+	for (in = clazz.named_constructors.begin(); in != clazz.named_constructors.end();
+	     ++in) {
+		print_constructor(os, clazz, *in, true);
+		print_method_jni(*in);
 	}
 
 	// We do not free objects of classes that have in-place update

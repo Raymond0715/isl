@@ -14,12 +14,12 @@
 extern "C" {
 #endif
 
-__isl_constructor
+__isl_export
 __isl_give isl_aff *isl_aff_zero_on_domain(__isl_take isl_local_space *ls);
-__isl_constructor
+__isl_export
 __isl_give isl_aff *isl_aff_val_on_domain(__isl_take isl_local_space *ls,
 	__isl_take isl_val *val);
-__isl_constructor
+__isl_export
 __isl_give isl_aff *isl_aff_var_on_domain(__isl_take isl_local_space *ls,
 	enum isl_dim_type type, unsigned pos);
 __isl_give isl_aff *isl_aff_nan_on_domain(__isl_take isl_local_space *ls);
@@ -202,20 +202,20 @@ __isl_give isl_space *isl_pw_aff_get_space(__isl_keep isl_pw_aff *pwaff);
 
 __isl_constructor
 __isl_give isl_pw_aff *isl_pw_aff_from_aff(__isl_take isl_aff *aff);
-__isl_constructor
+__isl_export
 __isl_give isl_pw_aff *isl_pw_aff_empty(__isl_take isl_space *dim);
 __isl_constructor
 __isl_give isl_pw_aff *isl_pw_aff_alloc(__isl_take isl_set *set,
 	__isl_take isl_aff *aff);
-__isl_constructor
+__isl_export
 __isl_give isl_pw_aff *isl_pw_aff_zero_on_domain(
 	__isl_take isl_local_space *ls);
-__isl_constructor
+__isl_export
 __isl_give isl_pw_aff *isl_pw_aff_var_on_domain(__isl_take isl_local_space *ls,
 	enum isl_dim_type type, unsigned pos);
-__isl_constructor
+__isl_export
 __isl_give isl_pw_aff *isl_pw_aff_nan_on_domain(__isl_take isl_local_space *ls);
-__isl_constructor
+__isl_export
 __isl_give isl_pw_aff *isl_pw_aff_val_on_domain(__isl_take isl_set *domain,
 	__isl_take isl_val *v);
 
@@ -468,13 +468,13 @@ ISL_DECLARE_MULTI_WITH_DOMAIN(aff)
 
 __isl_constructor
 __isl_give isl_multi_aff *isl_multi_aff_from_aff(__isl_take isl_aff *aff);
-__isl_constructor
+__isl_export
 __isl_give isl_multi_aff *isl_multi_aff_identity(__isl_take isl_space *space);
-__isl_constructor
+__isl_export
 __isl_give isl_multi_aff *isl_multi_aff_domain_map(__isl_take isl_space *space);
-__isl_constructor
+__isl_export
 __isl_give isl_multi_aff *isl_multi_aff_range_map(__isl_take isl_space *space);
-__isl_constructor
+__isl_export
 __isl_give isl_multi_aff *isl_multi_aff_project_out_map(
 	__isl_take isl_space *space, enum isl_dim_type type,
 	unsigned first, unsigned n);
@@ -595,7 +595,7 @@ __isl_give isl_pw_multi_aff *isl_pw_multi_aff_drop_dims(
 __isl_export
 __isl_give isl_set *isl_pw_multi_aff_domain(__isl_take isl_pw_multi_aff *pma);
 
-__isl_constructor
+__isl_export
 __isl_give isl_pw_multi_aff *isl_pw_multi_aff_empty(__isl_take isl_space *space);
 __isl_constructor
 __isl_give isl_pw_multi_aff *isl_pw_multi_aff_from_domain(

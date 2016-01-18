@@ -23,17 +23,17 @@ ISL_DECLARE_MULTI_NEG(val)
 ISL_DECLARE_MULTI_DIMS(val)
 ISL_DECLARE_MULTI_WITH_DOMAIN(val)
 
-__isl_constructor
+__isl_export
 __isl_give isl_val *isl_val_zero(isl_ctx *ctx);
-__isl_constructor
+__isl_export
 __isl_give isl_val *isl_val_one(isl_ctx *ctx);
-__isl_constructor
+__isl_export
 __isl_give isl_val *isl_val_negone(isl_ctx *ctx);
-__isl_constructor
+__isl_export
 __isl_give isl_val *isl_val_nan(isl_ctx *ctx);
-__isl_constructor
+__isl_export
 __isl_give isl_val *isl_val_infty(isl_ctx *ctx);
-__isl_constructor
+__isl_export
 __isl_give isl_val *isl_val_neginfty(isl_ctx *ctx);
 __isl_give isl_val *isl_val_int_from_si(isl_ctx *ctx, long i);
 __isl_give isl_val *isl_val_int_from_ui(isl_ctx *ctx, unsigned long u);

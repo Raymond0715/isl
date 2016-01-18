@@ -24,7 +24,7 @@ __isl_give isl_union_map *isl_union_map_from_basic_map(
 	__isl_take isl_basic_map *bmap);
 __isl_constructor
 __isl_give isl_union_map *isl_union_map_from_map(__isl_take isl_map *map);
-__isl_constructor
+__isl_export
 __isl_give isl_union_map *isl_union_map_empty(__isl_take isl_space *dim);
 __isl_give isl_union_map *isl_union_map_copy(__isl_keep isl_union_map *umap);
 __isl_null isl_union_map *isl_union_map_free(__isl_take isl_union_map *umap);
@@ -39,7 +39,7 @@ __isl_give isl_union_map *isl_union_map_reset_user(
 int isl_union_map_find_dim_by_name(__isl_keep isl_union_map *umap,
 	enum isl_dim_type type, const char *name);
 
-__isl_constructor
+__isl_export
 __isl_give isl_union_map *isl_union_map_universe(
 	__isl_take isl_union_map *umap);
 __isl_export
@@ -59,10 +59,10 @@ __isl_give isl_union_map *isl_union_map_range_map(
 __isl_export
 __isl_give isl_union_map *isl_union_set_wrapped_domain_map(
 	__isl_take isl_union_set *uset);
-__isl_constructor
+__isl_export
 __isl_give isl_union_map *isl_union_map_from_domain(
 	__isl_take isl_union_set *uset);
-__isl_constructor
+__isl_export
 __isl_give isl_union_map *isl_union_map_from_range(
 	__isl_take isl_union_set *uset);
 
@@ -183,7 +183,7 @@ __isl_give isl_union_map *isl_union_map_preimage_range_union_pw_multi_aff(
 	__isl_take isl_union_pw_multi_aff *upma);
 __isl_export
 __isl_give isl_union_map *isl_union_map_reverse(__isl_take isl_union_map *umap);
-__isl_constructor
+__isl_export
 __isl_give isl_union_map *isl_union_map_from_domain_and_range(
 	__isl_take isl_union_set *domain, __isl_take isl_union_set *range);
 

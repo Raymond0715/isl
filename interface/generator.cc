@@ -97,12 +97,11 @@ generator::generator(set<RecordDecl *> &types, set<FunctionDecl *> &functions,
 				    extract_type(t) != c.name)
 					no_this = true;
 			}
-			if (no_this)
-				cerr << "Warning: method '"
-				     << fdecl->getNameAsString()
-				     << "' does not have suitable first "
-					"argument (for 'this')." << endl;
-			c.methods.insert(fdecl);
+			if (no_this) {
+				c.named_constructors.insert(fdecl);
+			} else {
+				c.methods.insert(fdecl);
+			}
 		}
 	}
 

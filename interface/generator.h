@@ -24,6 +24,7 @@ struct isl_class {
 	string name;
 	RecordDecl *type;
 	set<FunctionDecl *> constructors;
+	set<FunctionDecl *> named_constructors;
 	set<FunctionDecl *> methods;
 
 	/* Return the a method name with the class prefix stripped,
