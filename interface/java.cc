@@ -13,15 +13,6 @@ static const string commonHeader =
     "package isl;\n"
     "import isl.*;\n";
 
-/* Get the definition of a local static class to represent
- * pointers to isl objects.
- */
-static const string getPtrTypeDecl(const string &superPtrTy)
-{
-	return "    static class Ptr extends " + superPtrTy +
-	       " { Ptr(long p) { super(p); } }";
-}
-
 static string name2camelcase(const string &name, bool startUpper)
 {
 	bool mkUpper = startUpper;
@@ -46,10 +37,20 @@ static string enumval2java(const isl_enum &enu, const string &valname)
 
 /* Drop the "isl_" initial part of the type name "name".
  */
-static string type2java(const string &name)
+static const string type2java(const string &name)
 {
 	assert(name.length() >= 4);
 	return name2camelcase(name.substr(4), true);
+}
+
+static const string jniCallbackApplyMID(int nr_parms)
+{
+	return "JNICallback" + to_string(nr_parms) + "_apply_mid";
+}
+
+static const string jniIntCallbackApplyMID(int nr_parms)
+{
+	return "JNIIntCallback" + to_string(nr_parms) + "_apply_mid";
 }
 
 
@@ -67,22 +68,12 @@ static const string jnifn(const string &name, const string &retty)
 			+ "(JNIEnv *env, jclass theclass";
 }
 
-static const string jniGetPtr(const string &expr, const string &type, const string &to) {
-	ostringstream os;
-	os << "    { jclass clz = (*env)->GetObjectClass(env, " << expr << ");" << endl
-	   << "      mid = (*env)->GetMethodID(env, clz, \"getRawValue\", \"()J\");" << endl
-	   << "    }" << endl
-	   << "    " << to << " = (" << type << " *)(*env)->CallLongMethod(env, " << expr << ", mid);" << endl;
-	return os.str();
+static const string jlong2islptr(const string &longExpr, const string &type) {
+	return "((" + type + " *) (uintptr_t) " + longExpr + ")";
 }
 
-static const string jniMkPtr(const string &expr, const string &type, const string &to) {
-	ostringstream os;
-	os << "    { jclass clz = (*env)->FindClass(env, \"isl/" << type2java(type) << "$Ptr\");" << endl
-	   << "      mid = (*env)->GetMethodID(env, clz, \"<init>\", \"(J)V\");" << endl
-	   << "      " << to << " = (*env)->NewObject(env, clz, mid, (jlong)(" << expr << "));" << endl
-	   << "    }" << endl;
-	return os.str();
+static const string islptr2jlong(const string &islptr) {
+	return "((jlong) (uintptr_t) " + islptr + ")";
 }
 
 /* Get the representation of type "ty" on the C side of the
@@ -90,15 +81,18 @@ static const string jniMkPtr(const string &expr, const string &type, const strin
  */
 string java_generator::paramtype2jni_c(QualType ty) {
 	if (is_isl_class(ty))
-		return "jobject";
+		return "jlong";
 	else if (is_isl_ctx(ty))
-		return "jobject";
+		return "jlong";
 	else if (is_string(ty))
 		return "jstring";
 	else if (is_isl_enum(ty))
 		return "jint";
 	else if (ty->isIntegerType())
-		return "jint";
+		if (ty.getAsString().compare("int") == 0)
+			return "jint";
+		else
+			return "jlong";
 	else if (is_callback(ty))
 		return "jobject";
 	else if (is_string(ty))
@@ -114,7 +108,7 @@ string java_generator::paramtype2jni_c(QualType ty) {
 		else if (targetty->isIntegerType())
 			return "jintArray";
 		else if (is_isl_class(targetty))
-			return "jobjectArray";
+			return "jlongArray";
 	} else if (ty.getAsString().compare("double") == 0)
 		return "jdouble";
 
@@ -133,38 +127,30 @@ string java_generator::paramtype2jni(QualType ty, bool wrapperTypes,
 				     bool isBool)
 {
 	string type;
-	if (is_isl_ctx(ty))
-		type = "Ctx.Ptr";
-	else if (is_isl_result_argument(ty)) {
-		type = javaTypeName(ty->getPointeeType()) + ".Ptr[]";
+	if (is_isl_ctx(ty)) {
+		type = "long";
+	} else if (is_isl_result_argument(ty)) {
+		type = "long[]";
 	} else if (is_isl_class(ty)) {
-		type = type2java(extract_type(ty)) + ".Ptr";
+		type = "long";
 	} else if (is_isl_enum(ty)) {
 		type = "int";
-	} else if (is_string(ty))
+	} else if (is_string(ty)) {
 		type = "String";
-	else if (ty->isFunctionPointerType()) {
+	} else if (ty->isFunctionPointerType()) {
 		const FunctionProtoType *ft =
 				ty->getPointeeType()->getAs<FunctionProtoType>();
 		unsigned nArgs =
 				ft->getNumArgs() - 1;  // drop "void *user" argument
 		ostringstream os;
 		bool intCB = ft->getReturnType()->isIntegerType();
-		os << (intCB ? "IntCallback" : "Callback") << dec
-		   << nArgs << "<";
-		for (unsigned i = 0; i < nArgs; ++i)
-			os << (i > 0 ? "," : "")
-			   << paramtype2jni(ft->getArgType(i), true);
-		if (!intCB)
-			os << ","
-			   << paramtype2jni(ft->getReturnType(), true);
-		os << ">";
+		os << (intCB ? "JNIIntCallback" : "JNICallback") << dec << nArgs;
 		type = os.str();
 	} else if (ty->isPointerType()) {
 		if (ty->getPointeeType().getAsString().compare("int") == 0)
 			type = isBool ? "boolean[]" : "int[]";
 		else
-			type = "Pointer";
+			type = "long";
 	} else if (ty->isVoidType())
 		type = "void";
 	else if (ty->isIntegerType()) {
@@ -215,7 +201,7 @@ string java_generator::paramtype2java(QualType type, bool wrapperTypes,
 				      bool isBool)
 {
 	if (is_isl_ctx(type)) {
-		return "isl.Ctx";
+		return "Ctx";
 	} else if (is_isl_type(type)) {
 		return javaTypeName(type);
 	} else if (is_isl_result_argument(type)) {
@@ -251,8 +237,9 @@ string java_generator::paramtype2java(QualType type, bool wrapperTypes,
 string java_generator::rettype2java(const FunctionDecl *method)
 {
 	QualType retty = method->getReturnType();
-	if (is_isl_bool(retty))
+	if (is_isl_bool(retty)) {
 		return "boolean";
+        }
 	return paramtype2java(retty);
 }
 
@@ -282,10 +269,10 @@ string java_generator::isl_ptr(const string &classname,
 			os << "(" << expression << ").makePtr0()";
 		else {
 			os << "Impl." << classname << "_copy(("
-			   << expression << ").getPtr())";
+			   << expression << ").ptr)";
 		}
 	} else {
-		os << "(" << expression << ").getPtr()";
+		os << "(" << expression << ").ptr";
 	}
 
 	return os.str();
@@ -299,12 +286,12 @@ string java_generator::javaTypeName(QualType ty)
 void java_generator::print_additional_val_methods(ostream &os)
 {
 	os << "    // Additional convenience methods" << endl
-	   << "    public static Val fromBigInteger(isl.Ctx ctx, "
+	   << "    public static Val fromBigInteger(Ctx ctx, "
 	      "java.math.BigInteger i) { return readFromStr(ctx, "
 	      "i.toString()); }" << endl
-	   << "    public static Val fromLong(isl.Ctx ctx, long l) { return "
+	   << "    public static Val fromLong(Ctx ctx, long l) { return "
 	      "readFromStr(ctx, Long.toString(l)); }" << endl
-	   << "    public static Val fromInt(isl.Ctx ctx, int i) { return "
+	   << "    public static Val fromInt(Ctx ctx, int i) { return "
 	      "readFromStr(ctx, Integer.toString(i)); }" << endl
 	   << "    public java.math.BigInteger getNum() {" << endl
 	   << "        return new "
@@ -327,9 +314,9 @@ void java_generator::print_additional_ctx_methods(ostream &os)
 	   << endl << "    void checkError() {" << endl
 	   << "        RuntimeException e = lastException;" << endl
 	   << "        lastException = null;" << endl
-	   << "        if (Impl.isl_ctx_last_error(getPtr()) != 0) { // "
+	   << "        if (Impl.isl_ctx_last_error(ptr) != 0) { // "
 	      "0 == isl_error_none" << endl
-	   << "            Impl.isl_ctx_reset_error(getPtr());" << endl
+	   << "            Impl.isl_ctx_reset_error(ptr);" << endl
 	   << "            e = new IslException(\"isl error\", e);"
 	   << endl << "        }" << endl << "        if (e != null)"
 	   << endl << "            throw e;" << endl << "     }" << endl;
@@ -351,8 +338,8 @@ void java_generator::print_callback(ostream &os, QualType type,
 	QualType t = fn->getReturnType();
 	if (is_isl_class(t)) {
 		has_result = true;
-		res_ty = paramtype2jni(t, false);
-		err_res = "null";
+		res_ty = "long";
+		err_res = "0L";
 		ok_res = "SHOULD_NEVER_BE_USED";
 	} else if (t->isIntegerType()) {
 		has_result = false;
@@ -365,29 +352,15 @@ void java_generator::print_callback(ostream &os, QualType type,
 		exit(1);
 	}
 
-	ostringstream osClass;
-	osClass << (has_result ? "Callback" : "IntCallback") << dec << (n_arg-1) << '<';
-	for (unsigned i = 0; i < n_arg - 1; ++i) {
-		QualType arg_type = fn->getArgType(i);
-		assert(is_isl_type(arg_type));
-		if (i > 0)
-			osClass << ',';
-		osClass << paramtype2jni(arg_type);
-	}
-	if (has_result)
-		osClass << ',' << res_ty;
-	osClass << '>';
-	const string cbClass = osClass.str();
-
+	const string cbClass((has_result ? "JNICallback" : "JNIIntCallback") + to_string(n_arg-1));
 	os << "            final Ctx _ctx = this.ctx;" << endl
 	   << "            " << cbClass << " cb = new " << cbClass << "() {" << endl
 	   << "                public " << res_ty << " apply(";
 	for (unsigned i = 0; i < n_arg - 1; ++i) {
-		QualType arg_type = fn->getArgType(i);
-		assert(is_isl_type(arg_type));
+		assert(is_isl_type(fn->getArgType(i)));
 		if (i > 0)
 			os << ", ";
-		os << paramtype2jni(arg_type) << " cb_arg" << dec << i;
+		os << "long cb_arg" << dec << i;
 	}
 	os << ") {" << endl;
 	os << "                    " << res_ty << " res = " << err_res << ";"
@@ -401,14 +374,15 @@ void java_generator::print_callback(ostream &os, QualType type,
 		os << "new " << type2java(extract_type(fn->getArgType(i)))
 		   << "(_ctx, cb_arg" << dec << i << ")";
 	}
-	os << ")" << (is_isl_class(t) ? ".getPtr()" : "") << ";" << endl;
+	os << ")" << (is_isl_class(t) ? ".ptr" : "") << ";" << endl;
 	if (!has_result)
 		os << "                        res = " << ok_res << ";" << endl;
 	os << "                    } catch (RuntimeException e) {" << endl
 	   << "                        _ctx.setException(e);" << endl
 	   << "                    }" << endl
-	   << "                    return res;" << endl << "                }"
-	   << endl << "            };" << endl;
+	   << "                    return res;" << endl
+	   << "                }" << endl
+	   << "            };" << endl;
 }
 
 void java_generator::prepare_argument(ostream &os, const ParmVarDecl *param)
@@ -421,9 +395,9 @@ void java_generator::prepare_argument(ostream &os, const ParmVarDecl *param)
 		type = type->getPointeeType();
 		string javaTyName = javaTypeName(type);
 		os << "            assert " << name << " == null || " << name
-		   << ".length == 1;" << endl << "        " << javaTyName
-		   << ".Ptr[] _" << name << " = " << name << " != null ? new "
-		   << javaTyName << ".Ptr[1] : null;" << endl;
+		   << ".length == 1;" << endl
+		   << "        long[] _" << name << " = " << name
+		   << " == null ? null : new long[1];" << endl;
 	} else if (is_unsigned(type)) {
 		os << "            assert " << name << " >= 0;" << endl;
 	} else if (is_isl_class(type)) {
@@ -447,8 +421,7 @@ void java_generator::print_argument(ostream &os, ParmVarDecl *param)
 	} else if (is_isl_enum(type))
 		os << name << ".value";
 	else if (is_isl_class(type)) {
-		string classname = extract_type(type);
-		os << isl_ptr(classname, name, takes(param));
+		os << isl_ptr(extract_type(type), name, takes(param));
 	} else if (is_string(type)) {
 		os << name;
 	} else {
@@ -474,6 +447,7 @@ void java_generator::handle_enum_return(ostream &os, const string &res,
 {
 	os << "        switch(" << res << ") {" << endl;
 	map<string, int>::const_iterator it;
+	// TODO: it->second is not unique! (isl_dim_set == isl_dim_out)
 	for (it = enu.values.begin(); it != enu.values.end(); ++it) {
 		os << "        case " << it->second << ": return "
 		   << type2java(enu.name) << "." << enumval2java(enu, it->first)
@@ -495,20 +469,20 @@ void java_generator::handle_return(ostream &os, const FunctionDecl *method,
 	} else if (is_isl_class(rettype)) {
 		string type;
 		type = type2java(extract_type(method->getReturnType()));
-		os << "        if (" << resVar << " == null)" << endl
-		   << "            throw new IslException(\"" << fullname
+		os << "            if (" << resVar << " == 0L)" << endl
+		   << "                throw new IslException(\"" << fullname
 		   << " returned a NULL pointer.\");" << endl
-		   << "        return new " << type << "(this.ctx, " << resVar
-		   << ");" << endl;
+		   << "            return new " << type << "(this.ctx, "
+		   << resVar << ");" << endl;
 	} else if (is_isl_enum(rettype)) {
 		handle_enum_return(os, resVar, find_enum(rettype));
 	} else if (is_isl_bool(rettype)) {
-		os << "        if (" << resVar << " == -1)" << endl
-		   << "            throw new IslException(\"" << fullname
-		   << " returned isl_error.\");" << endl
-		   << "        return " << resVar << " != 0;" << endl;
+		os << "            if (" << resVar << " == -1)" << endl
+		   << "                throw new IslException(\"" << fullname
+		   << " returned isl_error.\");" << endl << "        return "
+		   << resVar << " != 0;" << endl;
 	} else {
-		os << "        return " << resVar << ";" << endl;
+		os << "            return " << resVar << ";" << endl;
 	}
 }
 
@@ -550,8 +524,9 @@ void java_generator::print_method(ostream &os, isl_class &clazz,
 	}
 	os << ") {" << endl;
 
-	if (!is_void)
+	if (!is_void) {
 		os << "        " << rettype2jni(method) << " res;" << endl;
+	}
 
 	const string ctx = clazz.is_ctx() ? "this" : "this.ctx";
 	os << "        synchronized(" << ctx << ") {" << endl;
@@ -566,9 +541,8 @@ void java_generator::print_method(ostream &os, isl_class &clazz,
 		ParmVarDecl *param = method->getParamDecl(i);
 		prepare_argument(os, param);
 	}
-	os << "            ";
 	if (!is_void)
-		os << "res = ";
+		os << "        res = ";
 	os << "Impl." << fullname << "("
 	   << isl_ptr(clazz.name, "self", takes(method->getParamDecl(0)));
 	for (int i = 1; i < num_params - drop_user; ++i) {
@@ -583,12 +557,10 @@ void java_generator::print_method(ostream &os, isl_class &clazz,
 		const ParmVarDecl *param = method->getParamDecl(i);
 		handle_result_argument(os, "this.ctx", param);
 	}
-	os << "            " << ctx << ".checkError();" << endl << "        }"
-	   << endl;
-
+	os << "            " << ctx << ".checkError();" << endl;
 	handle_return(os, method, "res");
-
-	os << "    }" << endl;
+	os << "        }" << endl
+	   << "    }" << endl;
 
 	print_method_jni(method);
 }
@@ -631,7 +603,6 @@ void java_generator::print_method_jni(FunctionDecl *method) {
 				c_os << fn->getArgType(j).getAsString() << " arg" << dec << j;
 			}
 			c_os << ") {" << endl
-			     << "    jmethodID mid;" << endl
 			     << "    struct callbackinfo *cbinfo = (struct callbackinfo *)arg" << dec << (num_cbparms-1) << ";" << endl
 			     << "    JNIEnv *env = cbinfo->env;" << endl
 			     << "    jobject cb = cbinfo->cb;" << endl;
@@ -639,29 +610,35 @@ void java_generator::print_method_jni(FunctionDecl *method) {
 			string sig = "(";
 			for (int j=0; j<num_cbparms-1; ++j) {
 				string argty = extract_type(fn->getArgType(j));
-				c_os << "    jobject ptr" << dec << j << ";" << endl
-				     << jniMkPtr(string("arg") + to_string(j), argty, string("ptr") + to_string(j));
-				sig += "Ljava/lang/Object;";
+				c_os << "    jlong ptr" << dec << j << " = " << islptr2jlong(string("arg") + to_string(j)) << ';' << endl;
+				sig += "J";
 			}
-			sig += retty->isIntegerType() ? ")I" : ")Ljava/lang/Object;";
-			c_os << "    jclass clz = (*env)->GetObjectClass(env, cb);" << endl
-			     << "    mid = (*env)->GetMethodID(env, clz, \"apply\", \"" << sig << "\");" << endl;
-			if (retty->isIntegerType()) {
-				c_os << "    jint res = (*env)->CallIntMethod(env, cb, mid";
-			} else if (is_isl_class(retty)){
-				c_os << "    jobject ores = (*env)->CallObjectMethod(env, cb, mid";
-			}
+			string cb_mid;
+			if (retty->isIntegerType())
+				cb_mid = jniIntCallbackApplyMID(num_cbparms-1);
+			else if (is_isl_class(retty))
+				cb_mid = jniCallbackApplyMID(num_cbparms-1);
+			sig += retty->isIntegerType() ? ")I" : ")J";
+			c_os << "    if (" << cb_mid << " == NULL) {" << endl
+			     << "      jclass clz = (*env)->GetObjectClass(env, cb);" << endl
+			     << "      " << cb_mid << " = (*env)->GetMethodID(env, clz, \"apply\", \"" << sig << "\");" << endl
+			     << "    }" << endl;
+
+			c_os << "    ";
+			if (retty->isIntegerType())
+				c_os << "jint res = (*env)->CallIntMethod(env, cb, " << cb_mid;
+			else if (is_isl_class(retty))
+				c_os << "jlong res = (*env)->CallLongMethod(env, cb, " << cb_mid;
 			for (int j=0; j<num_cbparms-1; ++j)
 				c_os << ", ptr" << dec << j;
 			c_os << ");" << endl;
 
-			if (is_isl_class(retty)) {
-				c_os << "    " << extract_type(retty) << "* res;" << endl
-				     << jniGetPtr("ores", extract_type(retty), "res");
-			}
-
-			if (!retty->isVoidType())
+			if (retty->isIntegerType())
 				c_os << "    return res;" << endl;
+			else if (is_isl_class(retty))
+				c_os << "    return "
+				     << jlong2islptr("res", extract_type(retty))
+				     << ';' << endl;
 			c_os << "}" << endl;
 			callback = i;
 		}
@@ -674,19 +651,17 @@ void java_generator::print_method_jni(FunctionDecl *method) {
 		     << param->getNameAsString();
 	}
 	c_os << ") {" << endl;
-	c_os << "    jmethodID mid;" << endl;
 	for (int i = 0; i < num_params-drop_user; ++i) {
 		const ParmVarDecl *param = method->getParamDecl(i);
 		QualType ty = param->getOriginalType();
 		const string &pname = param->getNameAsString();
+		const string argName = string("arg") + to_string(i);
 		if (is_isl_class(ty) || is_isl_ctx(ty)) {
 			string c_type = is_isl_ctx(ty) ? "isl_ctx" : extract_type(ty);
-			ostringstream argos;
-			argos << c_type << " *arg" << dec << i;
-			string arg = argos.str();
-			c_os << jniGetPtr(pname, c_type, arg);
+			c_os << "    " << c_type << " *" << argName << " = "
+			     << jlong2islptr(pname, c_type) << ';' << endl;
 		} else if (is_string(ty)) {
-			c_os << "    const char *arg" << dec << i << " = (*env)->GetStringUTFChars(env, "
+			c_os << "    const char *" << argName << " = (*env)->GetStringUTFChars(env, "
 			     << pname << ", NULL);" << endl;
 		} else if (is_callback(ty)) {
 			c_os << "    // There are two memory leaks here: we never free 'cbinfo' and" << endl
@@ -697,12 +672,16 @@ void java_generator::print_method_jni(FunctionDecl *method) {
 		} else if (ty->isPointerType()) {
 			QualType targetty = ty->getPointeeType();
 			if (is_isl_class(targetty)) {
-				c_os << "    " << extract_type(targetty) << " *arg" << dec << i << "[1];" << endl;
+				string islType(extract_type(targetty));
+				c_os << "    " << islType << " *_" << argName << ';' << endl
+				     << "    " << islType << " **" << argName << " = "
+				     << "(*env)->IsSameObject(env, " << pname << ", NULL) ? NULL : &_"
+				     << argName << ';' << endl;
 			} else if (targetty->isIntegerType()) {
-				c_os << "    int arg" << dec << i << "[1];" << endl;
+				c_os << "    int " << argName << "[1];" << endl;
 			}
 		} else {
-			c_os << "    int arg" << dec << i << " = " << pname << ";" << endl;
+			c_os << "    int " << argName << " = " << pname << ";" << endl;
 		}
 	}
 	c_os << "    ";
@@ -723,34 +702,33 @@ void java_generator::print_method_jni(FunctionDecl *method) {
 	else if (drop_user)  // set user arg without callback (e.g. for isl_id_alloc) to NULL
 		c_os << ", NULL";
 	c_os << ");" << endl;
+	if ((callback >= 0) && (fullname.find("ast") == string::npos)) {
+		c_os << "    (*env)->DeleteGlobalRef(env, cbinfo->cb);" << endl
+		     << "    free(cbinfo);" << endl;
+	}
 	for (int i = 0; i < num_params-drop_user; ++i) {
 		const ParmVarDecl *param = method->getParamDecl(i);
 		QualType ty = param->getOriginalType();
 		const string &pname = param->getNameAsString();
+		const string argName = string("arg") + to_string(i);
 		if (is_string(ty)) {
 			c_os << "    (*env)->ReleaseStringUTFChars(env, " << pname
-			     << ", arg" << dec << i << ");" << endl;
+			     << ", " << argName << ");" << endl;
 		} else if (ty->isPointerType()) {
 			QualType targetty = ty->getPointeeType();
 			if (is_isl_class(targetty)) {
-				ostringstream argos;
-				argos << "arg" << dec << i << "[0]";
-				c_os << "    { jobject obj;" << endl
-				     << jniMkPtr(argos.str(), extract_type(targetty), "obj")
-				     << "    (*env)->SetObjectArrayElement(env, " << pname
-				     << ", 0, obj); }" << endl;
+				c_os << "    if (" << argName << " != NULL)" << endl
+				     << "        (*env)->SetLongArrayRegion(env, " << pname
+				     << ", 0, 1, (jlong *)" << argName << ");" << endl;
 			} else if (targetty->isIntegerType()) {
-				c_os << "    jint j_arg" << dec << i << "[1];" << endl
-				     << "    j_arg" << dec << i << "[0] = arg" << dec << i << "[0];" << endl
+				c_os << "    jint j_" << argName << " = " << argName << "[0];" << endl
 				     << "    (*env)->SetIntArrayRegion(env, " << pname
-				     << ", 0, 1, j_arg" << dec << i << ");" << endl;
+				     << ", 0, 1, &j_" << argName << ");" << endl;
 			}
 		}
 	}
 	if (is_isl_class(retty)) {
-		c_os << "    jobject ores;" << endl
-		     << jniMkPtr("res", extract_type(retty), "ores")
-		     << "    return ores;" << endl;
+		c_os << "    return " << islptr2jlong("res") << ';' << endl;
 	} else if (is_string(retty)) {
 		c_os << "    jobject jstr = (*env)->NewStringUTF(env, res);" << endl;
 		if (gives(method))
@@ -783,7 +761,9 @@ void java_generator::print_constructor(ostream &os, isl_class &clazz,
 	int ctxArg = -1, ctxSrc = -1;
 	int num_params = cons->getNumParams();
 	int drop_user = has_user_pointer(cons) ? 1 : 0;
-	int is_ctx = jclass.compare("Ctx") == 0;
+	int is_ctx = clazz.name.compare("isl_ctx") == 0;
+	string super;
+	bool subclass = is_subclass(clazz.type, super);
 
 	if (!asNamedConstructor)
 		os << "    // " << fullname << endl;
@@ -807,7 +787,7 @@ void java_generator::print_constructor(ostream &os, isl_class &clazz,
 
 	// When there is no isl class argument that can give us the
 	// isl context, there must be an explicit isl context argument
-	// (except when the class is "isl_ctx", i.e. noCtx==true).
+	// (except when the class is "isl_ctx").
 	if (!is_ctx && ctxSrc == -1 && ctxArg == -1) {
 		cerr << "Cannot generate binding for '" << fullname
 		     << "':" << endl << "  no context argument and no argument "
@@ -831,29 +811,19 @@ void java_generator::print_constructor(ostream &os, isl_class &clazz,
 
 	os << ") {" << endl;
 
-	const string obj = asNamedConstructor ? "that" : "this";
-	if (asNamedConstructor) {
-		os << "        " << jclass << " " << obj << " = new " << jclass
-		   << "();" << endl;
-	}
-
+	string ctx;
 	if (!is_ctx) {
-		if (ctxSrc >= 0) {
-			os << "        " << obj
-			   << ".ctx = " << cons->getParamDecl(ctxSrc)->getNameAsString()
-			   << ".ctx;" << endl;
-		} else {
-			os << "        " << obj
-			   << ".ctx = " << cons->getParamDecl(ctxArg)->getNameAsString()
-			   << ";" << endl;
-		}
+		if (ctxSrc >= 0)
+			ctx = cons->getParamDecl(ctxSrc)->getNameAsString() + ".ctx";
+		else
+			ctx = cons->getParamDecl(ctxArg)->getNameAsString();
 	}
 
-	// Where to find the context, usually obj.ctx but
-	// when we handle isl_ctx, obj is itself the context.
-	const string ctx = is_ctx ? obj : obj+".ctx";
+	if (subclass && !asNamedConstructor) {
+		os << "        super(" << ctx << ", 0);" << endl;
+	}
 
-	os << "        synchronized(" << ctx << ") {" << endl;
+	os << "        synchronized(" << (is_ctx ? "Ctx.class" : ctx) << ") {" << endl;
 	for (int i = 0; i < num_params-drop_user; ++i) {
 		if (i == ctxArg && ctxSrc >= 0)
 			continue;
@@ -862,13 +832,16 @@ void java_generator::print_constructor(ostream &os, isl_class &clazz,
 		prepare_argument(os, param);
 	}
 
-	os << "            " << obj << ".ptr = Impl." << fullname << "(";
+	os << "            ";
+	if (asNamedConstructor)
+		os << "long ";
+	os << "ptr = Impl." << fullname << '(';
 	for (int i = 0; i < num_params-drop_user; ++i) {
 		if (i > 0)
 			os << ", ";
 
 		if (i == ctxArg) {
-			os << obj << ".ctx.getPtr()";
+			os << ctx << ".ptr";
 		} else {
 			ParmVarDecl *param = cons->getParamDecl(i);
 			print_argument(os, param);
@@ -876,7 +849,7 @@ void java_generator::print_constructor(ostream &os, isl_class &clazz,
 	}
 	os << ");" << endl;
 
-	os << "            if (" << obj << ".ptr == null)" << endl
+	os << "            if (ptr == 0L)" << endl
 	   << "                throw new IslException(\"" << fullname
 	   << " returned a NULL pointer.\");" << endl;
 
@@ -885,14 +858,17 @@ void java_generator::print_constructor(ostream &os, isl_class &clazz,
 		handle_result_argument(os, ctx, param);
 	}
 
-	os << "            " << ctx << ".checkError();" << endl
-	   << "        }" << endl;
+	if (!is_ctx)
+		os << "            " << ctx << ".checkError();" << endl;
 
-	if (asNamedConstructor)
-		os << "        return " << obj << ";" << endl;
-	os << "    }" << endl;
-
-	print_method_jni(cons);
+	if (asNamedConstructor) {
+		os << "            return new " << jclass << "(";
+		if (!is_ctx)
+			os << ctx + ", ";
+		os << "ptr);" << endl;
+	}
+	os << "        }" << endl
+	   << "    }" << endl;
 }
 
 /* Print out the definition of this isl_class.
@@ -926,33 +902,32 @@ void java_generator::print_class(isl_class &clazz)
 	if (subclass)
 		os << " extends " << type2java(super);
 	os << " {" << endl;
-	string superPtr =
-	    subclass ? (type2java(super) + ".Ptr") : "Pointer";
-	os << getPtrTypeDecl(superPtr) << endl;
 	if (!subclass) {
-		if (clazz.name.compare("isl_ctx") != 0)
+		if (!is_ctx)
 			os << "    protected Ctx ctx;" << endl;
-		os << "    protected Ptr ptr;" << endl;
+		os << "    protected long ptr;" << endl;
+		if (is_ctx)
+			os << "    " << p_name << "(long ptr) {" << endl;
+		else
+			os << "    " << p_name << "(Ctx ctx, long ptr) {" << endl;
+		os << "        assert ptr != 0L;" << endl;
+		if (!is_ctx)
+			os << "        this.ctx = ctx;" << endl;
+		os << "        this.ptr = ptr;" << endl
+		   << "    }" << endl;
+		if (!is_ctx)
+		   os << "    public Ctx getCtx() { return ctx; }" << endl;
+	} else { // Ctx is not a subclass
+		os << "    " << p_name << "(Ctx ctx, long ptr) {" << endl
+		   << "        super(ctx, ptr);" << endl
+		   << "    }" << endl;
 	}
 
-	os << "    " << p_name << "() {}" << endl;
-
-	if (!is_ctx) {
-		os << "    " << p_name << "(Ctx ctx, Ptr ptr) {" << endl
-		   << "        assert !ptr.isNULL();" << endl
-		   << "        this.ctx = ctx;" << endl << "        this.ptr = ptr;"
-		   << endl << "    }" << endl;
-
-		os << "    public Ctx getCtx() { return ctx; }" << endl;
-	}
-
-	os << "    " << p_name << ".Ptr getPtr() { return (" << p_name
-	   << ".Ptr)this.ptr; }" << endl;
-
-	os << "    " << p_name << ".Ptr makePtr0() { " << endl << "        "
-	   << p_name << ".Ptr p = (" << p_name << ".Ptr)this.ptr;" << endl
-	   << "        this.ptr = new " << p_name << ".Ptr(0);" << endl
-	   << "        return p;" << endl << "    }" << endl;
+	os << "    long makePtr0() { " << endl
+	   << "        long p = this.ptr;" << endl
+	   << "        this.ptr = 0L;" << endl
+	   << "        return p;" << endl
+	   << "    }" << endl;
 
 	for (in = clazz.constructors.begin(); in != clazz.constructors.end();
 	     ++in) {
@@ -971,10 +946,10 @@ void java_generator::print_class(isl_class &clazz)
 	// parent objects and are freed when the parent object goes away.
 	if (!is_inplace(clazz)) {
 		os << "    protected void finalize() {" << endl
-		   << "        synchronized("
-		   << (is_ctx ? "this" : "this.ctx") << ") {" << endl
-		   << "            Impl." << name << "_free(getPtr());"
-		   << endl << "        }" << endl << "    }" << endl;
+		   << "        synchronized(" << (is_ctx ? "this" : "this.ctx")
+		   << ") {" << endl
+		   << "            Impl." << name << "_free(ptr);" << endl
+		   << "        }" << endl << "    }" << endl;
 	}
 
 	if (can_be_printed(clazz)) {
@@ -1028,28 +1003,23 @@ void java_generator::print_class(isl_class &clazz)
 
 	// Add isl_* functions to Impl interface.
 	ostream &impl_os = outputfile(packagePath + "Impl.java");
-	impl_os << "    static native void " << name << "_free(" << p_name
-		<< ".Ptr islobject);" << endl;
+	impl_os << "    static native void " << name << "_free(long islobject);" << endl;
 	if (has_copy) {
-		impl_os << "    static native " << p_name << ".Ptr "
-			<< name << "_copy(" << p_name << ".Ptr islobject);" << endl;
+		impl_os << "    static native long "
+			<< name << "_copy(long islobject);" << endl;
 	}
 
 	ostream &c_os = outputfile(jniSrc);
-	c_os << jnifn(name + "_free", "void") << ", jobject ptr)" << "{" << endl
-	     << "    jmethodID mid;" << endl
-	     << jniGetPtr("ptr", name, name + " *p")
+	c_os << jnifn(name + "_free", "void") << ", jlong ptr)" << "{" << endl
+	     << "    " << name << " *p = " << jlong2islptr("ptr", name) << ';' << endl
 	     << "    " << name << "_free(p);" << endl
 	     << "}" << endl;
 
 	if (has_copy) {
-		c_os << jnifn(name + "_copy", "jobject") << ", jobject ptr)" << "{" << endl
-		     << "    jmethodID mid;" << endl
-		     << jniGetPtr("ptr", name, name + " *p")
+		c_os << jnifn(name + "_copy", "jlong") << ", jlong ptr)" << '{' << endl
+		     << "    " << name + " *p = " << jlong2islptr("ptr", name) << ';' << endl
 		     << "    p = " << name << "_copy(p);" << endl
-		     << "    jclass ptrcl = (*env)->GetObjectClass(env, ptr);" << endl
-		     << "    jmethodID cons = (*env)->GetMethodID(env, ptrcl, \"<init>\", \"(J)V\");" << endl
-		     << "    return (*env)->NewObject(env, ptrcl, cons, p);" << endl
+		     << "    return " << islptr2jlong("p") << ';' << endl
 		     << "}" << endl;
 	}
 }
@@ -1083,16 +1053,19 @@ void java_generator::generateClasses()
 		ostringstream intfname_oss;
 		intfname_oss << "Callback" << dec << nArgs;
 		const string intfname = intfname_oss.str();
-		ostringstream args_oss, tys_oss;
+		ostringstream args_oss, tys_oss, jni_args_oss;
 		for (unsigned i = 1; i <= nArgs; ++i) {
 			if (i > 1) {
 				args_oss << ", ";
+				jni_args_oss << ", ";
 				tys_oss << ",";
 			}
 			args_oss << "ArgTy" << dec << i << " arg" << dec << i;
+			jni_args_oss << "long arg" << dec << i;
 			tys_oss << "ArgTy" << dec << i;
 		}
 		const string args = args_oss.str();
+		const string jni_args = jni_args_oss.str();
 		const string tys = tys_oss.str();
 
 		{
@@ -1116,6 +1089,16 @@ void java_generator::generateClasses()
 
 		{
 			ostream &os =
+			    outputfile(packagePath + string("JNI") +
+				       intfname + string(".java"));
+			os << commonHeader << "public interface JNI" << intfname
+			   << " {" << endl
+			   << "    long apply(" << jni_args << ");" << endl << "}"
+			   << endl;
+		}
+
+		{
+			ostream &os =
 			    outputfile(packagePath + string("Int") +
 				       intfname + string(".java"));
 			os << commonHeader << "public interface Int" << intfname
@@ -1123,22 +1106,23 @@ void java_generator::generateClasses()
 			   << "    int apply(" << args << ");" << endl << "}"
 			   << endl;
 		}
-	}
 
-	ostream &os_ptrty = outputfile(packagePath + "Pointer.java");
-	os_ptrty << commonHeader << "class Pointer {" << endl
-		 << "    public static final Pointer NULL = new Pointer(0);" << endl
-		 << "    private long ptr;" << endl
-		 << "    public final long getRawValue() { return ptr; }" << endl
-		 << "    public Pointer(long p) { ptr = p; }" << endl
-		 << "    public final boolean isNULL() { return ptr == 0; }" << endl
-		 << "}" << endl;
+		{
+			ostream &os =
+			    outputfile(packagePath + string("JNIInt") +
+				       intfname + string(".java"));
+			os << commonHeader << "public interface JNIInt" << intfname
+			   << " {" << endl
+			   << "    int apply(" << jni_args << ");" << endl << "}"
+			   << endl;
+		}
+	}
 
 	ostream &os_impl = outputfile(packagePath + "Impl.java");
 	os_impl << commonHeader << "class Impl {" << endl
 		<< "    static { System.loadLibrary(\"isl_jni\"); }" << endl
-		<< "    static native int isl_ctx_last_error(Ctx.Ptr ctx);" << endl
-		<< "    static native void isl_ctx_reset_error(Ctx.Ptr ctx);" << endl;
+		<< "    static native int isl_ctx_last_error(long ctx);" << endl
+		<< "    static native void isl_ctx_reset_error(long ctx);" << endl;
 
 	ostream &os_c = outputfile(jniSrc);
 	os_c << "struct callbackinfo {" << endl
@@ -1146,25 +1130,26 @@ void java_generator::generateClasses()
 	     << "    jobject cb;" << endl
 	     << "};" << endl;
 
+	map<string, isl_class>::iterator ci;
+	for (int i = 1; i <= 3; ++i) {
+		os_c << "static jmethodID " << jniCallbackApplyMID(i) << " = NULL;" << endl;
+		os_c << "static jmethodID " << jniIntCallbackApplyMID(i) << " = NULL;" << endl;
+	}
+
 	/*
 	os_c << jnifn("isl_ctx_alloc", "jobject") << ") {"
-	     << "    jmethodID mid;" << endl
 	     << "    isl_ctx *ctx = isl_ctx_alloc();" << endl
 	     << "    jobject octx;" << endl
 	     << jniMkPtr("ctx", "isl_ctx", "octx")
 	     << "    return octx;" << endl
 	     << "}" << endl;
 	*/
-	os_c << jnifn("isl_ctx_last_error", "jint") << ", jobject octx) {"
-	     << "    jmethodID mid;" << endl
-	     << "    isl_ctx *ctx;" << endl
-	     << jniGetPtr("octx", "isl_ctx", "ctx")
+	os_c << jnifn("isl_ctx_last_error", "jint") << ", jlong lctx) {" << endl
+	     << "    isl_ctx *ctx = " << jlong2islptr("lctx", "isl_ctx") << ';' << endl
 	     << "    return isl_ctx_last_error(ctx);" << endl
 	     << "}" << endl;
-	os_c << jnifn("isl_ctx_reset_error", "void") << ", jobject octx) {"
-	     << "    jmethodID mid;" << endl
-	     << "    isl_ctx *ctx;" << endl
-	     << jniGetPtr("octx", "isl_ctx", "ctx")
+	os_c << jnifn("isl_ctx_reset_error", "void") << ", jlong lctx) {" << endl
+	     << "    isl_ctx *ctx = " << jlong2islptr("lctx", "isl_ctx") << ';' << endl
 	     << "    isl_ctx_reset_error(ctx);" << endl
 	     << "}" << endl;
 
@@ -1179,7 +1164,6 @@ void java_generator::generateClasses()
 		   << endl;
 	}
 
-	map<string, isl_class>::iterator ci;
 	for (ci = classes.begin(); ci != classes.end(); ++ci) {
 		print_class(ci->second);
 	}
