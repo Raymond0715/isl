@@ -129,6 +129,8 @@ __isl_give isl_basic_map *isl_basic_map_more_at(__isl_take isl_space *dim,
 __isl_give isl_basic_map *isl_basic_map_empty(__isl_take isl_space *dim);
 __isl_give isl_basic_map *isl_basic_map_universe(__isl_take isl_space *dim);
 __isl_give isl_basic_map *isl_basic_map_nat_universe(__isl_take isl_space *dim);
+
+__isl_export
 __isl_give isl_basic_map *isl_basic_map_remove_redundancies(
 	__isl_take isl_basic_map *bmap);
 __isl_give isl_map *isl_map_remove_redundancies(__isl_take isl_map *map);
