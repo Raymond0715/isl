@@ -977,7 +977,8 @@ void java_generator::print_class(isl_class &clazz)
 
 	for (in = clazz.constructors.begin(); in != clazz.constructors.end();
 	     ++in) {
-		print_constructor(os, clazz, *in, false);
+		// TODO: Unnamed constructors do not work with the phantom references
+//		print_constructor(os, clazz, *in, false);
 		print_constructor(os, clazz, *in, true);
 		print_method_jni(*in);
 	}
