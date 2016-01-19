@@ -479,19 +479,32 @@ __isl_give isl_multi_aff *isl_multi_aff_project_out_map(
 	__isl_take isl_space *space, enum isl_dim_type type,
 	unsigned first, unsigned n);
 
+__isl_export
+__isl_give isl_multi_aff *isl_multi_aff_zero(__isl_take isl_space *space);
+
+__isl_export
+__isl_give isl_multi_aff *isl_multi_aff_set_aff(
+	__isl_take isl_multi_aff *multi, int pos,
+	__isl_take isl_aff *aff);
+  
 __isl_give isl_multi_aff *isl_multi_aff_multi_val_on_space(
 	__isl_take isl_space *space, __isl_take isl_multi_val *mv);
 
+__isl_export
 __isl_give isl_multi_aff *isl_multi_aff_floor(__isl_take isl_multi_aff *ma);
 
+__isl_export
 __isl_give isl_multi_aff *isl_multi_aff_gist_params(
 	__isl_take isl_multi_aff *maff, __isl_take isl_set *context);
+__isl_export
 __isl_give isl_multi_aff *isl_multi_aff_gist(__isl_take isl_multi_aff *maff,
 	__isl_take isl_set *context);
 
+__isl_export
 __isl_give isl_multi_aff *isl_multi_aff_lift(__isl_take isl_multi_aff *maff,
 	__isl_give isl_local_space **ls);
 
+__isl_export
 __isl_give isl_multi_aff *isl_multi_aff_pullback_multi_aff(
 	__isl_take isl_multi_aff *ma1, __isl_take isl_multi_aff *ma2);
 
@@ -520,6 +533,7 @@ ISL_DECLARE_MULTI_NEG(pw_aff)
 ISL_DECLARE_MULTI_DIMS(pw_aff)
 ISL_DECLARE_MULTI_WITH_DOMAIN(pw_aff)
 
+__isl_export
 __isl_give isl_pw_multi_aff *isl_pw_multi_aff_zero(__isl_take isl_space *space);
 __isl_give isl_pw_multi_aff *isl_pw_multi_aff_identity(
 	__isl_take isl_space *space);
@@ -647,48 +661,64 @@ __isl_give isl_pw_multi_aff *isl_pw_multi_aff_scale_down_val(
 __isl_give isl_pw_multi_aff *isl_pw_multi_aff_scale_multi_val(
 	__isl_take isl_pw_multi_aff *pma, __isl_take isl_multi_val *mv);
 
+__isl_export
 __isl_give isl_pw_multi_aff *isl_pw_multi_aff_union_lexmin(
 	__isl_take isl_pw_multi_aff *pma1,
 	__isl_take isl_pw_multi_aff *pma2);
+__isl_export
 __isl_give isl_pw_multi_aff *isl_pw_multi_aff_union_lexmax(
 	__isl_take isl_pw_multi_aff *pma1,
 	__isl_take isl_pw_multi_aff *pma2);
 
+__isl_export
 __isl_give isl_multi_aff *isl_multi_aff_flatten_domain(
 	__isl_take isl_multi_aff *ma);
 
+__isl_export
 __isl_give isl_pw_multi_aff *isl_pw_multi_aff_range_product(
 	__isl_take isl_pw_multi_aff *pma1, __isl_take isl_pw_multi_aff *pma2);
+__isl_export
 __isl_give isl_pw_multi_aff *isl_pw_multi_aff_flat_range_product(
 	__isl_take isl_pw_multi_aff *pma1, __isl_take isl_pw_multi_aff *pma2);
+__isl_export
 __isl_give isl_pw_multi_aff *isl_pw_multi_aff_product(
 	__isl_take isl_pw_multi_aff *pma1, __isl_take isl_pw_multi_aff *pma2);
 
+__isl_export
 __isl_give isl_pw_multi_aff *isl_pw_multi_aff_intersect_params(
 	__isl_take isl_pw_multi_aff *pma, __isl_take isl_set *set);
+__isl_export
 __isl_give isl_pw_multi_aff *isl_pw_multi_aff_intersect_domain(
 	__isl_take isl_pw_multi_aff *pma, __isl_take isl_set *set);
 __isl_give isl_pw_multi_aff *isl_pw_multi_aff_subtract_domain(
 	__isl_take isl_pw_multi_aff *pma, __isl_take isl_set *set);
 
+__isl_export
 __isl_give isl_pw_multi_aff *isl_pw_multi_aff_project_domain_on_params(
 	__isl_take isl_pw_multi_aff *pma);
 
+__isl_export
 __isl_give isl_pw_multi_aff *isl_pw_multi_aff_align_params(
 	__isl_take isl_pw_multi_aff *pma, __isl_take isl_space *model);
 
+__isl_export
 __isl_give isl_pw_multi_aff *isl_pw_multi_aff_coalesce(
 	__isl_take isl_pw_multi_aff *pma);
+__isl_export
 __isl_give isl_pw_multi_aff *isl_pw_multi_aff_gist_params(
 	__isl_take isl_pw_multi_aff *pma, __isl_take isl_set *set);
+__isl_export
 __isl_give isl_pw_multi_aff *isl_pw_multi_aff_gist(
 	__isl_take isl_pw_multi_aff *pma, __isl_take isl_set *set);
 
+__isl_export
 __isl_give isl_pw_multi_aff *isl_pw_multi_aff_pullback_multi_aff(
 	__isl_take isl_pw_multi_aff *pma, __isl_take isl_multi_aff *ma);
+__isl_export
 __isl_give isl_pw_multi_aff *isl_pw_multi_aff_pullback_pw_multi_aff(
 	__isl_take isl_pw_multi_aff *pma1, __isl_take isl_pw_multi_aff *pma2);
 
+__isl_export
 isl_stat isl_pw_multi_aff_foreach_piece(__isl_keep isl_pw_multi_aff *pma,
 	isl_stat (*fn)(__isl_take isl_set *set, __isl_take isl_multi_aff *maff,
 		    void *user), void *user);

@@ -36,6 +36,7 @@ __isl_export
 __isl_give isl_constraint *isl_constraint_alloc_inequality(
 	__isl_take isl_local_space *ls);
 __isl_give isl_constraint *isl_equality_alloc(__isl_take isl_local_space *ls);
+__isl_constructor
 __isl_give isl_constraint *isl_inequality_alloc(__isl_take isl_local_space *ls);
 
 struct isl_constraint *isl_constraint_cow(struct isl_constraint *c);
@@ -150,6 +151,7 @@ isl_bool isl_constraint_is_upper_bound(__isl_keep isl_constraint *constraint,
 __isl_constructor
 __isl_give isl_basic_map *isl_basic_map_from_constraint(
 	__isl_take isl_constraint *constraint);
+__isl_constructor
 struct isl_basic_set *isl_basic_set_from_constraint(
 	struct isl_constraint *constraint);
 

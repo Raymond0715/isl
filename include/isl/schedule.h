@@ -14,7 +14,7 @@
 extern "C" {
 #endif
 
-struct isl_schedule_constraints;
+struct __isl_export isl_schedule_constraints;
 typedef struct isl_schedule_constraints isl_schedule_constraints;
 struct __isl_export isl_schedule;
 typedef struct isl_schedule isl_schedule;

@@ -160,9 +160,11 @@ __isl_give isl_space *isl_space_drop_outputs(__isl_take isl_space *dim,
 		unsigned first, unsigned n);
 __isl_export
 __isl_give isl_space *isl_space_domain(__isl_take isl_space *dim);
+__isl_export
 __isl_give isl_space *isl_space_from_domain(__isl_take isl_space *dim);
 __isl_export
 __isl_give isl_space *isl_space_range(__isl_take isl_space *dim);
+__isl_export
 __isl_give isl_space *isl_space_from_range(__isl_take isl_space *dim);
 __isl_export
 __isl_give isl_space *isl_space_domain_map(__isl_take isl_space *space);
@@ -227,8 +229,10 @@ int isl_space_match(__isl_keep isl_space *dim1, enum isl_dim_type dim1_type,
 ISL_DEPRECATED
 int isl_space_tuple_match(__isl_keep isl_space *space1, enum isl_dim_type type1,
 	__isl_keep isl_space *space2, enum isl_dim_type type2);
+__isl_export
 int isl_space_compatible(__isl_keep isl_space *dim1,
 	__isl_keep isl_space *dim2);
+__isl_export
 unsigned isl_space_dim(__isl_keep isl_space *dim, enum isl_dim_type type);
 
 __isl_give char *isl_space_to_str(__isl_keep isl_space *space);

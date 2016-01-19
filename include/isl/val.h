@@ -35,6 +35,8 @@ __isl_export
 __isl_give isl_val *isl_val_infty(isl_ctx *ctx);
 __isl_export
 __isl_give isl_val *isl_val_neginfty(isl_ctx *ctx);
+
+__isl_export
 __isl_give isl_val *isl_val_int_from_si(isl_ctx *ctx, long i);
 __isl_give isl_val *isl_val_int_from_ui(isl_ctx *ctx, unsigned long u);
 __isl_give isl_val *isl_val_int_from_chunks(isl_ctx *ctx, size_t n,
@@ -81,6 +83,7 @@ __isl_give isl_val *isl_val_sub(__isl_take isl_val *v1, __isl_take isl_val *v2);
 __isl_give isl_val *isl_val_sub_ui(__isl_take isl_val *v1, unsigned long v2);
 __isl_export
 __isl_give isl_val *isl_val_mul(__isl_take isl_val *v1, __isl_take isl_val *v2);
+__isl_export
 __isl_give isl_val *isl_val_mul_ui(__isl_take isl_val *v1, unsigned long v2);
 __isl_export
 __isl_give isl_val *isl_val_div(__isl_take isl_val *v1, __isl_take isl_val *v2);
