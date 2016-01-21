@@ -1,3 +1,5 @@
+import scala.language.implicitConversions
+
 import isl._
 
 package isl {

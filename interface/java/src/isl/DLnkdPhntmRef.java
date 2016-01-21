@@ -32,13 +32,16 @@ abstract class DLnkdPhntmRef extends PhantomReference<Object> {
         this.prv = null;
     }
 
+    final DLnkdPhntmRef next() {
+	return nxt;
+    }
+
     abstract void freeCPtr();
 
     static final DLnkdPhntmRef createListDelims() {
         DLnkdPhntmRef start = new DummyDLnkdPhntmRef();
-        DLnkdPhntmRef end = new DummyDLnkdPhntmRef();
-        start.nxt = end;
-        end.prv = start;
+        start.nxt = start;
+        start.prv = start;
         return start;
     }
 
