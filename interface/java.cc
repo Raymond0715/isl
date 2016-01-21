@@ -934,12 +934,13 @@ void java_generator::print_class(isl_class &clazz)
 		os << " extends " << type2java(super);
 	os << " {" << endl;
 	if (!subclass) {
-		if (is_ctx)
+		if (is_ctx) {
 			os << "    final ReferenceQueue<Object> refQ = new ReferenceQueue<Object>();" << endl
 			   << "    final DLnkdPhntmRef refList = DLnkdPhntmRef.createListDelims();" << endl;
-		else
-			os << "    final protected Ctx ctx;" << endl
-			   << "    final protected DLnkdPhntmRef ref;" << endl;
+		} else {
+			os << "    DLnkdPhntmRef ref;" << endl;
+			os << "    final protected Ctx ctx;" << endl;
+		}
 		os << "    protected long ptr;" << endl;
 		if (is_ctx)
 			os << "    " << p_name << "(long cPtr) {" << endl;
@@ -948,12 +949,13 @@ void java_generator::print_class(isl_class &clazz)
 		os << "        assert cPtr != 0L;" << endl;
 		if (!is_ctx) {
 			os << "        this.ctx = ctx;" << endl;
-			if (must_be_freed)
-				os << "        this.ref = createPhRef(ctx, cPtr);" << endl
-				   << "        this.ref.setPointer(cPtr);" << endl
-				   << "        this.ref.insertAfter(ctx.refList);" << endl;
-			else
-				os << "        this.ref = null;" << endl;
+			if (must_be_freed) {
+				os << "        ref = createPhRef(ctx, cPtr);" << endl
+				   << "        ref.setPointer(cPtr);" << endl
+				   << "        ref.insertAfter(ctx.refList);" << endl;
+			} else {
+				os << "        ref = null;" << endl;
+			}
 		}
 		os << "        this.ptr = cPtr;" << endl
 		   << "    }" << endl;
@@ -990,9 +992,21 @@ void java_generator::print_class(isl_class &clazz)
 
 	if (must_be_freed) {
 		if (is_ctx)
+			// When the context becomes garbage, there may still be wrapper objects
+			// for C-side isl objects around (which must also be garbage because
+			// they hold a reference to the context) which have not been added to the
+			// phantom reference queue. Therefore, we free all C-side objects
+			// (by iterating over our list of phantom references) when
+			// the context is finalized (there is no need to poll the reference queue
+			// because all the objects to be freed are still in the list of
+			// phantom references).
 			os << "    protected void finalize() {" << endl
 			   << "        synchronized(this) {" << endl
-			   << "            this.freeIslC();" << endl
+			   << "            DLnkdPhntmRef r = refList.next();" << endl
+			   << "            while (r != refList) {" << endl
+			   << "			r.freeCPtr();" << endl
+			   << "                 r = r.next();" << endl
+			   << "            }" << endl
 			   << "            Impl." << name << "_free(ptr);" << endl
 			   << "        }" << endl
 			   << "    }" << endl;
