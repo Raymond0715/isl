@@ -15,7 +15,7 @@ typedef struct isl_val isl_val;
 
 ISL_DECLARE_LIST(val)
 
-struct isl_multi_val;
+struct __isl_export isl_multi_val;
 typedef struct isl_multi_val isl_multi_val;
 
 ISL_DECLARE_MULTI(val)
@@ -150,18 +150,151 @@ __isl_give isl_printer *isl_printer_print_val(__isl_take isl_printer *p,
 void isl_val_dump(__isl_keep isl_val *v);
 __isl_give char *isl_val_to_str(__isl_keep isl_val *v);
 
+__isl_export
 __isl_give isl_multi_val *isl_multi_val_add_val(__isl_take isl_multi_val *mv,
 	__isl_take isl_val *v);
+__isl_export
 __isl_give isl_multi_val *isl_multi_val_mod_val(__isl_take isl_multi_val *mv,
 	__isl_take isl_val *v);
 
+__isl_export
 __isl_give isl_multi_val *isl_multi_val_read_from_str(isl_ctx *ctx,
 	const char *str);
 __isl_give isl_printer *isl_printer_print_multi_val(__isl_take isl_printer *p,
 	__isl_keep isl_multi_val *mv);
+
+__isl_export
+__isl_give isl_multi_val *isl_multi_val_zero(__isl_take isl_space *space);
+
 void isl_multi_val_dump(__isl_keep isl_multi_val *mv);
 __isl_give char *isl_multi_val_to_str(__isl_keep isl_multi_val *mv);
 
+__isl_export
+__isl_give isl_multi_val *isl_multi_val_from_val_list(
+        __isl_take isl_space *space, __isl_take isl_val_list *list);
+
+__isl_export
+__isl_give isl_val *isl_multi_val_get_val(__isl_keep isl_multi_val *mv, int pos);
+
+__isl_export
+__isl_give isl_multi_val *isl_multi_val_set_val(
+						__isl_take isl_multi_val *mv, int pos,
+						__isl_take isl_val *val);
+
+__isl_export
+isl_bool isl_multi_val_range_is_wrapping(
+					 __isl_keep isl_multi_val *mv);
+
+__isl_export
+__isl_give isl_multi_val *isl_multi_val_from_range(
+						   __isl_take isl_multi_val *mv);
+
+__isl_export
+__isl_give isl_multi_val *isl_multi_val_flatten_range(
+						      __isl_take isl_multi_val *mv);
+
+__isl_export
+__isl_give isl_multi_val *isl_multi_val_align_params(
+						     __isl_take isl_multi_val *mv,
+						     __isl_take isl_space *model);
+
+__isl_export
+__isl_give isl_multi_val *isl_multi_val_neg(
+					    __isl_take isl_multi_val *mv);
+
+
+__isl_export
+__isl_give isl_multi_val *isl_multi_val_insert_dims(
+						      __isl_take isl_multi_val *mv,
+						      enum isl_dim_type type, unsigned first, unsigned n);
+__isl_export
+__isl_give isl_multi_val *isl_multi_val_add_dims(
+						   __isl_take isl_multi_val *mv,
+						   enum isl_dim_type type, unsigned n);
+
+__isl_export
+__isl_give isl_multi_val *isl_multi_val_drop_dims(
+						    __isl_take isl_multi_val *mv,
+						    enum isl_dim_type type, unsigned first, unsigned n);
+
+__isl_export
+__isl_give isl_multi_val *isl_multi_val_range_product(
+							__isl_take isl_multi_val *mv1,
+							__isl_take isl_multi_val *mv2);
+
+__isl_export
+__isl_give isl_multi_val *isl_multi_val_product(
+						  __isl_take isl_multi_val *mv1,
+						  __isl_take isl_multi_val *mv2);
+
+
+  //__isl_export
+  //__isl_give isl_multi_val *isl_multi_val_flat_range_product(
+  //							     __isl_take isl_multi_val *mv1,
+  //							     __isl_take isl_multi_aff *mv2);
+
+__isl_export
+__isl_give isl_multi_val *isl_multi_val_factor_range(
+						     __isl_take isl_multi_val *mv);
+
+__isl_export
+__isl_give isl_multi_val *isl_multi_val_range_factor_domain(
+				    __isl_take isl_multi_val *mv);
+
+__isl_export
+__isl_give isl_multi_val *isl_multi_val_range_factor_range(
+				   __isl_take isl_multi_val *mv);
+
+__isl_export
+__isl_give isl_multi_val *isl_multi_val_range_splice(
+						       __isl_take isl_multi_val *mv1, unsigned pos,
+						       __isl_take isl_multi_val *mv2);
+
+__isl_export
+__isl_give isl_multi_val *isl_multi_val_add(
+					      __isl_take isl_multi_val *mv1,
+					      __isl_take isl_multi_val *mv2);
+
+__isl_export
+__isl_give isl_multi_val *isl_multi_val_sub(
+					      __isl_take isl_multi_val *mv1,
+					      __isl_take isl_multi_val *mv2);
+
+  //__isl_export
+  //__isl_give isl_multi_val *isl_multi_val_add_val(
+  //						  __isl_take isl_multi_val *mv,
+  //						  __isl_take isl_val *v);
+
+  //__isl_export
+  //__isl_give isl_multi_val *isl_multi_val_mod_val(
+  //						  __isl_take isl_multi_val *mv,
+  //						  __isl_take isl_val *v);
+
+__isl_export
+__isl_give isl_multi_val *isl_multi_val_scale_val(
+						       __isl_take isl_multi_val *mv,
+						       __isl_take isl_val *v);
+
+__isl_export
+__isl_give isl_multi_val *isl_multi_val_scale_down_val(
+							 __isl_take isl_multi_val *mv,
+							 __isl_take isl_val *v);
+
+__isl_export
+__isl_give isl_multi_val *isl_multi_val_mod_multi_val(
+							__isl_take isl_multi_val *mv1,
+							__isl_take isl_multi_val *mv2);
+
+__isl_export
+__isl_give isl_multi_val *isl_multi_val_scale_multi_val(
+							  __isl_take isl_multi_val *mv1,
+							  __isl_take isl_multi_val *mv2);
+
+__isl_export
+__isl_give isl_multi_val *isl_multi_val_scale_down_multi_val(
+				     __isl_take isl_multi_val *mv1,
+				     __isl_take isl_multi_val *mv2);
+  
 #if defined(__cplusplus)
 }
 #endif

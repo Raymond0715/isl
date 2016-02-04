@@ -1071,7 +1071,9 @@ void java_generator::print_class(isl_class &clazz)
 
 	os << "}" << endl;
 
-	bool has_copy = name.compare("isl_schedule") != 0 && name.compare("isl_printer") != 0
+	//	bool has_copy = name.compare("isl_schedule") != 0 && name.compare("isl_printer") != 0
+	//		&& !clazz.is_ctx();
+	bool has_copy = name.compare("isl_printer") != 0
 			&& !clazz.is_ctx();
 
 	// Add isl_* functions to Impl interface.
@@ -1113,7 +1115,7 @@ void java_generator::generateClasses()
 	  "mat", "multi", "obj", "options", "point", "polynomial",
 	  "polynomial_type", "printer", "schedule", "set", "set_type",
 	  "space", "stdint", "stream", "union_map", "union_map_type",
-	  "union_set", "union_set_type", "val", "vec", "vertices"
+	  "union_set", "union_set_type", "val", "vec", "vertices", "schedule_node"
 	};
 
 	ostream &c_os = outputfile(jniSrc);

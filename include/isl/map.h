@@ -451,8 +451,10 @@ __isl_give isl_map *isl_map_flat_domain_product(__isl_take isl_map *map1,
 __isl_export
 __isl_give isl_map *isl_map_flat_range_product(__isl_take isl_map *map1,
 	__isl_take isl_map *map2);
-isl_bool isl_map_domain_is_wrapping(__isl_keep isl_map *map);
-isl_bool isl_map_range_is_wrapping(__isl_keep isl_map *map);
+__isl_export
+  isl_bool isl_map_domain_is_wrapping(__isl_keep isl_map *map);
+__isl_export
+  isl_bool isl_map_range_is_wrapping(__isl_keep isl_map *map);
 __isl_give isl_map *isl_map_factor_domain(__isl_take isl_map *map);
 __isl_give isl_map *isl_map_factor_range(__isl_take isl_map *map);
 __isl_give isl_map *isl_map_domain_factor_domain(__isl_take isl_map *map);
@@ -699,6 +701,7 @@ __isl_export
 isl_bool isl_basic_map_can_curry(__isl_keep isl_basic_map *bmap);
 __isl_export
 isl_bool isl_map_can_curry(__isl_keep isl_map *map);
+__isl_export
 __isl_give isl_basic_map *isl_basic_map_curry(__isl_take isl_basic_map *bmap);
 __isl_export
 __isl_give isl_map *isl_map_curry(__isl_take isl_map *map);
@@ -711,6 +714,7 @@ __isl_export
 isl_bool isl_basic_map_can_uncurry(__isl_keep isl_basic_map *bmap);
 __isl_export
 isl_bool isl_map_can_uncurry(__isl_keep isl_map *map);
+__isl_export
 __isl_give isl_basic_map *isl_basic_map_uncurry(__isl_take isl_basic_map *bmap);
 __isl_export
 __isl_give isl_map *isl_map_uncurry(__isl_take isl_map *map);
