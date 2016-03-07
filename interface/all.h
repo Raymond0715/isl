@@ -9,3 +9,4 @@
 #include <isl/polynomial.h>
 #include <isl/schedule_node.h>
 #include <isl/val.h>
+#include <isl/aff.h>
