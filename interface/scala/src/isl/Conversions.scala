@@ -1,6 +1,7 @@
 import scala.language.implicitConversions
 
 import isl._
+import java.math.BigInteger
 
 package isl {
   object Conversions {
@@ -41,7 +42,7 @@ package isl {
     }
 
     implicit def convertValToBigInt(v: Val): BigInt = {
-      assert(v.getDen() == 1)
+      assert(v.getDen() == BigInteger.ONE)
       new BigInt(v.getNum())
     }
 
