@@ -43,7 +43,9 @@ __isl_give isl_##EL##_list *isl_##EL##_list_drop(			\
 __isl_give isl_##EL##_list *isl_##EL##_list_concat(			\
 	__isl_take isl_##EL##_list *list1,				\
 	__isl_take isl_##EL##_list *list2);				\
+__isl_export                                                            \
 int isl_##EL##_list_n_##EL(__isl_keep isl_##EL##_list *list);		\
+__isl_export                                                            \
 __isl_give struct isl_##EL *isl_##EL##_list_get_##EL(			\
 	__isl_keep isl_##EL##_list *list, int index);			\
 __isl_give struct isl_##EL##_list *isl_##EL##_list_set_##EL(		\
