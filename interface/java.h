@@ -17,8 +17,8 @@ private:
 
 	void print_additional_val_methods(ostream &os);
 	void print_additional_ctx_methods(ostream &os);
-	void print_callback(ostream &os, QualType type, const string &arg);
-	void prepare_argument(ostream &os, const ParmVarDecl *param);
+	void print_callback(FunctionDecl *fdecl, unsigned f_arg, ostream &os, QualType type, const string &arg);
+	void prepare_argument(FunctionDecl *fdecl, unsigned f_arg, ostream &os, const ParmVarDecl *param);
 	void print_argument(ostream &os, ParmVarDecl *param);
 	void handle_result_argument(ostream &os, const string &ctx,
 				    const ParmVarDecl *param);

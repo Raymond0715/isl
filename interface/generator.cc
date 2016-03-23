@@ -472,6 +472,25 @@ bool generator::is_inplace(const isl_class &clazz) const {
 	return has_annotation(clazz.type, "isl_inplace");
 }
 
+static struct CbTakeArgs {
+	const char *name;
+	unsigned arg;
+	unsigned cb_arg;
+} cb_take_args[] = { { "isl_schedule_map_schedule_node_bottom_up", 1, 0 },
+		     { 0, 0, 0 }
+		   };
+
+bool generator::is_callback_argument_take(FunctionDecl *fd, unsigned arg, unsigned cb_arg)
+{
+	const string &name = fd->getName();
+	for (CbTakeArgs *ta=cb_take_args; ta->name; ++ta) {
+		if (name == ta->name && arg == ta->arg && cb_arg == ta->cb_arg) {
+			return true;
+		}
+	}
+	return false;
+}
+
 /* We assume that enum values are name lik "isl_dim_all", "isl_fold_max", etc.,
  * i.e., we can drop 2 underscores (for the "isl_" and the "dim_"/"fold_"/etc.
  * prefixes).

@@ -106,6 +106,10 @@ protected:
 	 * (such as isl_band).
 	 */
 	bool is_inplace(const isl_class &clazz) const;
+
+	// Check if a callback (which is argument 'arg' of 'fd') has
+	// an __isl_take annotation at its 'cb_arg'th argument.
+	bool is_callback_argument_take(FunctionDecl *fd, unsigned arg, unsigned cb_arg);
 };
 
 #endif

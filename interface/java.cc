@@ -338,8 +338,11 @@ void java_generator::print_additional_ctx_methods(ostream &os)
 /* Construct a wrapper for a callback argument (at position "arg").
  * Assign the wrapper to "cb".  We assume here that a function call
  * has at most one callback argument.
+ * fdecl and f_arg are the function declaration containing the callback
+ * and the position of the callback argument, respectively.
  */
-void java_generator::print_callback(ostream &os, QualType type,
+void java_generator::print_callback(FunctionDecl *fdecl, unsigned f_arg,
+				    ostream &os, QualType type,
 				    const string &arg)
 {
 	const FunctionProtoType *fn = type->getAs<FunctionProtoType>();
@@ -382,7 +385,7 @@ void java_generator::print_callback(ostream &os, QualType type,
 	os << "                        " << (has_result ? "res = " : "") << arg
 	   << ".apply(";
 	for (unsigned i = 0; i < n_arg - 1; ++i) {
-		bool is_keep = true; // HACK: we do not know if the argument is __isl_keep or __isl_take
+		bool is_take = is_callback_argument_take(fdecl, f_arg, i); // HACK: we do not know if the argument is __isl_keep or __isl_take
 		// __isl_keep arguments must be copied (because the wrapper object
 		// frees the pointer when it is deleted)
 		const string &name = extract_type(fn->getArgType(i));
@@ -390,7 +393,7 @@ void java_generator::print_callback(ostream &os, QualType type,
 		if (i > 0)
 			os << ", ";
 		os << "new " << type2java(name)
-		   << "(_ctx, " << (has_copy && is_keep? "Impl." + name + "_copy" : "")
+		   << "(_ctx, " << (has_copy && !is_take ? "Impl." + name + "_copy" : "")
 		   << "(cb_arg" << dec << i << "))";
 	}
 	os << ")" << (is_isl_class(t) ? ".ptr" : "") << ";" << endl;
@@ -416,12 +419,12 @@ void java_generator::print_callback(ostream &os, QualType type,
 	   << "            };" << endl;
 }
 
-void java_generator::prepare_argument(ostream &os, const ParmVarDecl *param)
+void java_generator::prepare_argument(FunctionDecl *fdecl, unsigned f_arg, ostream &os, const ParmVarDecl *param)
 {
 	QualType type = param->getOriginalType();
 	const string &name = param->getNameAsString();
 	if (is_callback(type)) {
-		print_callback(os, type->getPointeeType(), name);
+		print_callback(fdecl, f_arg, os, type->getPointeeType(), name);
 	} else if (is_isl_result_argument(type)) {
 		type = type->getPointeeType();
 		string javaTyName = javaTypeName(type);
@@ -574,7 +577,7 @@ void java_generator::print_method(ostream &os, isl_class &clazz,
 
 	for (int i = 1; i < num_params - drop_user; ++i) {
 		ParmVarDecl *param = method->getParamDecl(i);
-		prepare_argument(os, param);
+		prepare_argument(method, i, os, param);
 	}
 	if (!is_void)
 		os << "        res = ";
@@ -871,7 +874,7 @@ void java_generator::print_constructor(ostream &os, isl_class &clazz,
 			continue;
 
 		ParmVarDecl *param = cons->getParamDecl(i);
-		prepare_argument(os, param);
+		prepare_argument(cons, i, os, param);
 	}
 
 	os << "            ";
