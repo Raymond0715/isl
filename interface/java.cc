@@ -382,14 +382,32 @@ void java_generator::print_callback(ostream &os, QualType type,
 	os << "                        " << (has_result ? "res = " : "") << arg
 	   << ".apply(";
 	for (unsigned i = 0; i < n_arg - 1; ++i) {
+		bool is_keep = true; // HACK: we do not know if the argument is __isl_keep or __isl_take
+		// __isl_keep arguments must be copied (because the wrapper object
+		// frees the pointer when it is deleted)
+		const string &name = extract_type(fn->getArgType(i));
+		bool has_copy = name.compare("isl_printer") != 0;
 		if (i > 0)
 			os << ", ";
-		os << "new " << type2java(extract_type(fn->getArgType(i)))
-		   << "(_ctx, cb_arg" << dec << i << ")";
+		os << "new " << type2java(name)
+		   << "(_ctx, " << (has_copy && is_keep? "Impl." + name + "_copy" : "")
+		   << "(cb_arg" << dec << i << "))";
 	}
 	os << ")" << (is_isl_class(t) ? ".ptr" : "") << ";" << endl;
-	if (!has_result)
+	if (!has_result) {
 		os << "                        res = " << ok_res << ";" << endl;
+	} else {
+		// when the callback returns an isl object,
+		// copy the pointer because the wrapper object
+		// return by the callback will also free the isl object
+		// when it is deleted
+		const string &name = extract_type(fn->getReturnType());
+		bool has_copy = name.compare("isl_printer") != 0;
+		if (has_copy) {
+			os << "                        res = Impl."
+			   << name << "_copy(res);" << endl;
+		}
+	}
 	os << "                    } catch (RuntimeException e) {" << endl
 	   << "                        _ctx.setException(e);" << endl
 	   << "                    }" << endl
