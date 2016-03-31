@@ -472,18 +472,18 @@ bool generator::is_inplace(const isl_class &clazz) const {
 	return has_annotation(clazz.type, "isl_inplace");
 }
 
-static struct CbTakeArgs {
+static struct CbKeepArgs {
 	const char *name;
 	unsigned arg;
 	unsigned cb_arg;
-} cb_take_args[] = { { "isl_schedule_map_schedule_node_bottom_up", 1, 0 },
+} cb_keep_args[] = { { "isl_schedule_foreach_schedule_node_top_down", 1, 0 },
 		     { 0, 0, 0 }
 		   };
 
-bool generator::is_callback_argument_take(FunctionDecl *fd, unsigned arg, unsigned cb_arg)
+bool generator::is_callback_argument_keep(FunctionDecl *fd, unsigned arg, unsigned cb_arg)
 {
 	const string &name = fd->getName();
-	for (CbTakeArgs *ta=cb_take_args; ta->name; ++ta) {
+	for (CbKeepArgs *ta=cb_keep_args; ta->name; ++ta) {
 		if (name == ta->name && arg == ta->arg && cb_arg == ta->cb_arg) {
 			return true;
 		}

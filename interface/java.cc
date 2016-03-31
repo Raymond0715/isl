@@ -385,15 +385,20 @@ void java_generator::print_callback(FunctionDecl *fdecl, unsigned f_arg,
 	os << "                        " << (has_result ? "res = " : "") << arg
 	   << ".apply(";
 	for (unsigned i = 0; i < n_arg - 1; ++i) {
-		bool is_take = is_callback_argument_take(fdecl, f_arg, i); // HACK: we do not know if the argument is __isl_keep or __isl_take
+		bool is_keep = is_callback_argument_keep(fdecl, f_arg, i);
 		// __isl_keep arguments must be copied (because the wrapper object
 		// frees the pointer when it is deleted)
 		const string &name = extract_type(fn->getArgType(i));
 		bool has_copy = name.compare("isl_printer") != 0;
+		if (is_keep && !has_copy) {
+			cerr << "Error: Callback in " << fdecl->getName().str()
+			     << "has __isl_keep argument which has no copy function" << endl;
+			exit(1);
+		}
 		if (i > 0)
 			os << ", ";
 		os << "new " << type2java(name)
-		   << "(_ctx, " << (has_copy && !is_take ? "Impl." + name + "_copy" : "")
+		   << "(_ctx, " << (is_keep ? "Impl." + name + "_copy" : "")
 		   << "(cb_arg" << dec << i << "))";
 	}
 	os << ")" << (is_isl_class(t) ? ".ptr" : "") << ";" << endl;
