@@ -61,9 +61,11 @@ isl-scala.jar: isl.jar scala/src/isl/*.scala
 	$(SCALAC) $(SCALAC_FLAGS) -d scala/target `find scala/src -name \*.scala`
 	$(JAR) -uf $@ -C scala/target .
 
+# Do not delete then java/gen directory; make needs
+# the java/gen/.deps directory to work correctly.
 .PHONY: clean
 clean:
-	$(RM) -rf python java/gen java/target scala/target
+	$(RM) -rf python java/gen/* java/target scala/target
 	$(RM) -f isl.py java/Manifest.txt isl.jar isl-scala.jar *.o
 
 dist-hook: isl.py
