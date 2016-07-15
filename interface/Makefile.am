@@ -28,7 +28,7 @@ extract_interface_LDADD = \
 CLEANFILES = isl.py
 
 libisl_jni_la_SOURCES  = java/gen/isl_jni.c
-libisl_jni_la_CPPFLAGS = $(includes) -I$(JNI_INCLUDE)
+libisl_jni_la_CPPFLAGS = $(includes) $(addprefix -I,$(JNI_INCLUDE)) $(addprefix, -I,$(JNIMD_INCLUDE))
 libisl_jni_la_LIBADD   = $(top_builddir)/libisl.la
 libisl_jni_la_LDFLAGS  = -version-info @versioninfo@
 
