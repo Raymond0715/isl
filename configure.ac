@@ -290,7 +290,7 @@ if test -z "$JNIMD_INCLUDE"; then
 		AC_MSG_WARN(no path specified and none for jni.h)
 	fi
 else
-	if test ! -f "$JNI_INCLUDE/jni_md.h"; then
+	if test ! -f "$JNIMD_INCLUDE/jni_md.h"; then
 		JNIMD_INCLUDE=""
 	fi
 fi
