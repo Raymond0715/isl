@@ -1222,8 +1222,8 @@ void java_generator::generateClasses()
 	ostream &os_impl = outputfile(packagePath + "Impl.java");
 	os_impl << commonHeader << "class Impl {" << endl
 		<< "    static { System.loadLibrary(\"isl_jni\"); }" << endl
-		<< "    static native int isl_ctx_last_error(long ctx);" << endl
-		<< "    static native void isl_ctx_reset_error(long ctx);" << endl;
+		<< "    static native int isl_ctx_last_error(long ctx);" << endl;
+          //		<< "    static native void isl_ctx_reset_error(long ctx);" << endl;
 
 	ostream &os_c = outputfile(jniSrc);
 	os_c << "struct callbackinfo {" << endl
@@ -1249,10 +1249,12 @@ void java_generator::generateClasses()
 	     << "    isl_ctx *ctx = " << jlong2islptr("lctx", "isl_ctx") << ';' << endl
 	     << "    return isl_ctx_last_error(ctx);" << endl
 	     << "}" << endl;
+        /*
 	os_c << jnifn("isl_ctx_reset_error", "void") << ", jlong lctx) {" << endl
 	     << "    isl_ctx *ctx = " << jlong2islptr("lctx", "isl_ctx") << ';' << endl
 	     << "    isl_ctx_reset_error(ctx);" << endl
 	     << "}" << endl;
+        */
 
 	{
 		ostream &os = outputfile(packagePath + "IslException.java");
