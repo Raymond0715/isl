@@ -480,6 +480,10 @@ __isl_give isl_multi_aff *isl_multi_aff_project_out_map(
 	unsigned first, unsigned n);
 
 __isl_export
+unsigned isl_multi_aff_dim(__isl_keep isl_multi_aff *maff,
+                           enum isl_dim_type type);
+  
+__isl_export
 __isl_give isl_multi_aff *isl_multi_aff_zero(__isl_take isl_space *space);
 
 __isl_export

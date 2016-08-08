@@ -173,7 +173,9 @@ __isl_export
 unsigned long isl_ctx_get_max_operations(isl_ctx *ctx);
 __isl_export
 void isl_ctx_reset_operations(isl_ctx *ctx);
-
+__isl_export
+unsigned long isl_ctx_get_operations(isl_ctx *ctx);
+  
 #define ISL_ARG_CTX_DECL(prefix,st,args)				\
 st *isl_ctx_peek_ ## prefix(isl_ctx *ctx);
 

@@ -332,3 +332,12 @@ void isl_ctx_reset_operations(isl_ctx *ctx)
 		return;
 	ctx->operations = 0;
 }
+
+/* Return the number of operations already performed by "ctx"-
+ */
+unsigned long isl_ctx_get_operations(isl_ctx *ctx)
+{
+	if (!ctx)
+		return -1;
+	return ctx->operations;
+}
