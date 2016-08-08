@@ -28,7 +28,7 @@ extract_interface_LDADD = \
 CLEANFILES = isl.py
 
 libisl_jni_la_SOURCES  = java/gen/isl_jni.c
-libisl_jni_la_CPPFLAGS = $(includes) -I$(JNI_INCLUDE)
+libisl_jni_la_CPPFLAGS = $(includes) $(addprefix -I,$(JNI_INCLUDE)) $(addprefix -I,$(JNIMD_INCLUDE))
 libisl_jni_la_LIBADD   = $(top_builddir)/libisl.la
 libisl_jni_la_LDFLAGS  = -version-info @versioninfo@
 
@@ -61,9 +61,11 @@ isl-scala.jar: isl.jar scala/src/isl/*.scala
 	$(SCALAC) $(SCALAC_FLAGS) -d scala/target `find scala/src -name \*.scala`
 	$(JAR) -uf $@ -C scala/target .
 
+# Do not delete then java/gen directory; make needs
+# the java/gen/.deps directory to work correctly.
 .PHONY: clean
 clean:
-	$(RM) -rf python java/gen java/target scala/target
+	$(RM) -rf python java/gen/* java/target scala/target
 	$(RM) -f isl.py java/Manifest.txt isl.jar isl-scala.jar *.o
 
 dist-hook: isl.py

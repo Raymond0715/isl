@@ -503,17 +503,17 @@ void python_generator::generate()
 void python_generator::printf(const char *fmt, ...)
 {
 	va_list ap;
-	char *ptr;
-	size_t size;
-	FILE *f = open_memstream(&ptr, &size);
+	const size_t size = 1024;
+	char str[size];
 
-	if (f == NULL) {
-		cerr << "Oops, could not open memstream." << endl;
+	va_start(ap, fmt);
+	int res = vsnprintf(str, size, fmt, ap);
+	// When the buffer is too small, 'size' is returned (except
+	// for some non-conforming versions of glibc, which return -1).
+	if (res == -1 || res == size) {
+		cerr << "python_generator::printf: not enough space in buffer" << endl;
 		exit(1);
 	}
-	va_start(ap, fmt);
-	vfprintf(f, fmt, ap);
-	fclose(f);
-	os << ptr;
+	os << str;
 }
 

@@ -263,7 +263,46 @@ AC_ARG_WITH([jni-include],
 			[directory where to find jni.h])],
 	[JNI_INCLUDE=$withval],
 	[])
+AC_ARG_WITH([jnimd-include],
+	[AS_HELP_STRING([--with-jnimd-include=DIR/],
+			[directory where to find jni_md.h])],
+	[JNIMD_INCLUDE=$withval],
+	[])
+AC_MSG_CHECKING([for jni.h])
+if test "${JNI_INCLUDE}"; then
+	if test -f "${JNI_INCLUDE}/jni.h"; then
+		AC_MSG_RESULT(found in $JNI_INCLUDE)
+	else
+		AC_MSG_ERROR(not found)
+	fi
+else
+	AC_MSG_WARN(no path specified)
+fi
+AC_MSG_CHECKING([for jni_md.h])
+if test -z "$JNIMD_INCLUDE"; then
+	if test "$JNI_INCLUDE"; then
+		for d in "$JNI_INCLUDE"/*; do
+			if test -f "$d/jni_md.h"; then
+				JNIMD_INCLUDE="$d"
+			fi
+		done
+	else
+		AC_MSG_WARN(no path specified and none for jni.h)
+	fi
+else
+	if test ! -f "$JNIMD_INCLUDE/jni_md.h"; then
+		JNIMD_INCLUDE=""
+	fi
+fi
+
+if test "$JNIMD_INCLUDE"; then
+	AC_MSG_RESULT(found in $JNIMD_INCLUDE)
+elif test "$JNI_INCLUDE"; then
+	AC_MSG_RESULT(not found)
+fi
 AC_SUBST(JNI_INCLUDE)
+AC_SUBST(JNIMD_INCLUDE)
+
 
 AC_PATH_PROG(CP, cp)
 AC_PROG_MKDIR_P
