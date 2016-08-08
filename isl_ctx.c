@@ -337,4 +337,12 @@ void isl_ctx_reset_operations(isl_ctx *ctx)
  */
 unsigned long isl_ctx_get_operations(isl_ctx *ctx)
 {
+  return ctx ? ctx->operations : 0;
+}
+
+/* Return the number of operations that can still be performed by "ctx"-
+ */
+unsigned long isl_ctx_get_remaining_operations(isl_ctx *ctx)
+{
+  return ctx ? ctx->max_operations - ctx->operations : 0;
 }
