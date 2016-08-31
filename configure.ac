@@ -303,6 +303,18 @@ fi
 AC_SUBST(JNI_INCLUDE)
 AC_SUBST(JNIMD_INCLUDE)
 
+if test $with_clang = system; then
+	AC_ARG_ENABLE([libisl_jni],
+		[AS_HELP_STRING([--disable-libisl_jni],
+				[do not build libisl_jni])])
+	AM_CONDITIONAL([WANT_LIBISL_JNI], [test x$enable_libisl_jni != xno])
+	
+	AC_ARG_ENABLE([libisl_jni_portable],
+		[AS_HELP_STRING([--enable-libisl_jni_portable],
+				[build libisl_jni_portable])])
+	AM_CONDITIONAL([WANT_LIBISL_JNI_PORTABLE], [test x$enable_libisl_jni_portable = xyes])
+fi
+
 
 AC_PATH_PROG(CP, cp)
 AC_PROG_MKDIR_P

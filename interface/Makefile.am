@@ -1,7 +1,13 @@
 AUTOMAKE_OPTIONS = nostdinc subdir-objects
 
 noinst_PROGRAMS = extract_interface
-lib_LTLIBRARIES = libisl_jni.la
+lib_LTLIBRARIES =
+if WANT_LIBISL_JNI
+lib_LTLIBRARIES += libisl_jni.la
+endif
+if WANT_LIBISL_JNI_PORTABLE
+lib_LTLIBRARIES += libisl_jni_portable.la
+endif
 
 AM_CXXFLAGS = $(CLANG_CXXFLAGS) -fno-rtti
 AM_LDFLAGS = $(CLANG_LDFLAGS)
@@ -31,6 +37,11 @@ libisl_jni_la_SOURCES  = java/gen/isl_jni.c
 libisl_jni_la_CPPFLAGS = $(includes) $(addprefix -I,$(JNI_INCLUDE)) $(addprefix -I,$(JNIMD_INCLUDE))
 libisl_jni_la_LIBADD   = $(top_builddir)/libisl.la
 libisl_jni_la_LDFLAGS  = -version-info @versioninfo@
+
+libisl_jni_portable_la_SOURCES  = $(libisl_jni_la_SOURCES)
+libisl_jni_portable_la_CPPFLAGS = $(libisl_jni_la_CPPFLAGS)
+libisl_jni_portable_la_LIBADD   = $(top_builddir)/libisl_conv.la
+libisl_jni_portable_la_LDFLAGS  = $(libisl_jni_la_LDFLAGS)
 
 JAVAC_FLAGS=
 SCALAC_FLAGS=-cp isl.jar

@@ -8,6 +8,10 @@ ACLOCAL_AMFLAGS = -I m4
 AUTOMAKE_OPTIONS = nostdinc subdir-objects
 
 lib_LTLIBRARIES = libisl.la
+noinst_LTLIBRARIES =
+if WANT_LIBISL_JNI_PORTABLE
+noinst_LTLIBRARIES += libisl_conv.la
+endif
 noinst_PROGRAMS = isl_test isl_polyhedron_sample isl_pip \
 	isl_polyhedron_minimize isl_polytope_scan \
 	isl_polyhedron_detect_equalities isl_cat \
@@ -187,6 +191,10 @@ libisl_la_SOURCES = \
 libisl_la_LIBADD = @MP_LIBS@
 libisl_la_LDFLAGS = -version-info @versioninfo@ \
 	@MP_LDFLAGS@
+
+libisl_conv_la_SOURCES = $(libisl_la_SOURCES)
+libisl_conv_la_LIBADD = $(libisl_la_LIBADD)
+libisl_conv_la_LDFLAGS = @MP_LDFLAGS@
 
 isl_test_LDFLAGS = @MP_LDFLAGS@
 isl_test_LDADD = libisl.la @MP_LIBS@
