@@ -59,7 +59,7 @@ isl.py: extract_interface$(EXEEXT) isl.py.top
 isl.jar java/gen/isl_jni.c: extract_interface$(EXEEXT) java/Manifest.txt
 	./extract_interface$(EXEEXT) $(includes) $(srcdir)/all.h --language=java --output-dir=java/gen
 	$(MKDIR_P) java/target/src
-	$(CP) -r java/src/isl java/target/src/
+	$(CP) -r $(srcdir)/java/src/isl java/target/src/
 	$(CP) -r java/gen/isl java/target/src/
 	$(JAVAC) $(JAVAC_FLAGS) -d java/target `find java/target/src -name \*.java`
 	$(JAR) -cfm isl.jar java/Manifest.txt -C java/target .
@@ -71,7 +71,7 @@ java/Manifest.txt:
 isl-scala.jar: isl.jar scala/src/isl/*.scala
 	$(CP) isl.jar isl-scala.jar
 	$(MKDIR_P) scala/target/src
-	$(CP) -r scala/src scala/target/
+	$(CP) -r $(srcdir)/scala/src scala/target/
 	$(SCALAC) $(SCALAC_FLAGS) -d scala/target `find scala/target/src -name \*.scala`
 	$(JAR) -uf $@ -C scala/target .
 
