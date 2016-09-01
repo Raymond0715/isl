@@ -1221,7 +1221,7 @@ void java_generator::generateClasses()
 
 	ostream &os_impl = outputfile(packagePath + "Impl.java");
 	os_impl << commonHeader << "class Impl {" << endl
-		<< "    static { System.loadLibrary(\"isl_jni\"); }" << endl
+		<< "    static { isl.Init.loadNative(); }" << endl
 		<< "    static native int isl_ctx_last_error(long ctx);" << endl;
           //		<< "    static native void isl_ctx_reset_error(long ctx);" << endl;
 
