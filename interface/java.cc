@@ -320,7 +320,7 @@ void java_generator::print_additional_ctx_methods(ostream &os)
 	      "two exceptions in a row; exception not handled:\\n\" +"
 	   << endl << "                lastException.getMessage());" << endl
 	   << "        lastException = e;" << endl
-	   << "	   }" << endl
+	   << "    }" << endl
 	   << "    void checkError() {" << endl
 	   << "        RuntimeException e = lastException;" << endl
 	   << "        lastException = null;" << endl
@@ -369,8 +369,7 @@ void java_generator::print_callback(FunctionDecl *fdecl, unsigned f_arg,
 	}
 
 	const string cbClass((has_result ? "JNICallback" : "JNIIntCallback") + to_string(n_arg-1));
-	os << "            final Ctx _ctx = this.ctx;" << endl
-	   << "            " << cbClass << " cb = new " << cbClass << "() {" << endl
+	os << "            " << cbClass << " cb = new " << cbClass << "() {" << endl
 	   << "                public " << res_ty << " apply(";
 	for (unsigned i = 0; i < n_arg - 1; ++i) {
 		assert(is_isl_type(fn->getArgType(i)));
@@ -398,7 +397,7 @@ void java_generator::print_callback(FunctionDecl *fdecl, unsigned f_arg,
 		if (i > 0)
 			os << ", ";
 		os << "new " << type2java(name)
-		   << "(_ctx, " << (is_keep ? "Impl." + name + "_copy" : "")
+		   << "(ctx, " << (is_keep ? "Impl." + name + "_copy" : "")
 		   << "(cb_arg" << dec << i << "))";
 	}
 	os << ")" << (is_isl_class(t) ? ".ptr" : "") << ";" << endl;
@@ -417,7 +416,7 @@ void java_generator::print_callback(FunctionDecl *fdecl, unsigned f_arg,
 		}
 	}
 	os << "                    } catch (RuntimeException e) {" << endl
-	   << "                        _ctx.setException(e);" << endl
+	   << "                        ctx.setException(e);" << endl
 	   << "                    }" << endl
 	   << "                    return res;" << endl
 	   << "                }" << endl
@@ -574,7 +573,8 @@ void java_generator::print_method(ostream &os, isl_class &clazz,
 	os << ") {" << endl;
 
 	const string ctx = clazz.is_ctx() ? "this" : "this.ctx";
-	os << "        Ctx ctx = " << ctx << ";" << endl
+	// final ctx allows usage in inner class
+	os << "        final Ctx ctx = " << ctx << ";" << endl
 	   << "        synchronized(ctx) {" << endl;
 
 	// Look for already collected java wrapper objects and free connected
