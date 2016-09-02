@@ -591,8 +591,9 @@ void java_generator::print_method(ostream &os, isl_class &clazz,
 		ParmVarDecl *param = method->getParamDecl(i);
 		prepare_argument(method, i, os, param);
 	}
+	os << "            ";
 	if (!is_void)
-		os << "            " << rettype2jni(method) << " res = ";
+		os << rettype2jni(method) << " res = ";
 	os << "Impl." << fullname << "("
 	   << isl_ptr(clazz.name, "self", takes(method->getParamDecl(0)));
 	for (int i = 1; i < num_params - drop_user; ++i) {
