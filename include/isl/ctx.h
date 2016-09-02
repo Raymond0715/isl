@@ -255,7 +255,6 @@ isl_stat prefix ## _set_ ## field(isl_ctx *ctx, const char *val)	\
 	ISL_CTX_SET_INT_DEF(prefix,st,args,field)
 
 enum isl_error isl_ctx_last_error(isl_ctx *ctx);
-__isl_export
 void isl_ctx_reset_error(isl_ctx *ctx);
 void isl_ctx_set_error(isl_ctx *ctx, enum isl_error error);
 

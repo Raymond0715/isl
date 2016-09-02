@@ -313,25 +313,14 @@ void java_generator::print_additional_ctx_methods(ostream &os)
 	   << "            phRef.remove();" << endl
 	   << "        }" << endl
 	   << "    }" << endl
-	   << "    private RuntimeException lastException = null;" << endl
-	   << "    void setException(RuntimeException e) {" << endl
-	   << "        if (lastException != null)" << endl
-	   << "            System.err.println(\"isl bindings warning: "
-	      "two exceptions in a row; exception not handled:\\n\" +"
-	   << endl << "                lastException.getMessage());" << endl
-	   << "        lastException = e;" << endl
-	   << "    }" << endl
 	   << "    void checkError() {" << endl
-	   << "        RuntimeException e = lastException;" << endl
-	   << "        lastException = null;" << endl
-	   << "        if (Impl.isl_ctx_last_error(ptr) != 0) { // "
+	   << "        int error = Impl.isl_ctx_last_error(ptr);" << endl
+	   << "        if (error != 0) { // "
 	      "0 == isl_error_none" << endl
 	   << "            Impl.isl_ctx_reset_error(ptr);" << endl
-	   << "            e = new IslException(\"isl error\", e);"
+	   << "            throw new IslException(\"isl error (\" + error + \")\");"
 	   << endl
 	   << "        }" << endl
-	   << "        if (e != null)" << endl
-	   << "            throw e;" << endl
 	   << "     }" << endl;
 }
 
@@ -355,12 +344,10 @@ void java_generator::print_callback(FunctionDecl *fdecl, unsigned f_arg,
 	if (is_isl_class(t)) {
 		has_result = true;
 		res_ty = "long";
-		err_res = "0L";
 		ok_res = "SHOULD_NEVER_BE_USED";
 	} else if (t->isIntegerType()) {
 		has_result = false;
 		res_ty = "int";
-		err_res = "-1";
 		ok_res = "0";
 	} else {
 		cerr << "Error: unhandled result type for callback: "
@@ -378,11 +365,10 @@ void java_generator::print_callback(FunctionDecl *fdecl, unsigned f_arg,
 		os << "long cb_arg" << dec << i;
 	}
 	os << ") {" << endl;
-	os << "                    " << res_ty << " res = " << err_res << ";"
-	   << endl;
-	os << "                    try {" << endl;
-	os << "                        " << (has_result ? "res = " : "") << arg
-	   << ".apply(";
+	os << "                    ";
+	if (has_result)
+		os << res_ty << " res = ";
+	os << arg << ".apply(";
 	for (unsigned i = 0; i < n_arg - 1; ++i) {
 		bool is_keep = is_callback_argument_keep(fdecl, f_arg, i);
 		// __isl_keep arguments must be copied (because the wrapper object
@@ -402,7 +388,7 @@ void java_generator::print_callback(FunctionDecl *fdecl, unsigned f_arg,
 	}
 	os << ")" << (is_isl_class(t) ? ".ptr" : "") << ";" << endl;
 	if (!has_result) {
-		os << "                        res = " << ok_res << ";" << endl;
+		os << "                    return " << ok_res << ';' << endl;
 	} else {
 		// when the callback returns an isl object,
 		// copy the pointer because the wrapper object
@@ -411,15 +397,12 @@ void java_generator::print_callback(FunctionDecl *fdecl, unsigned f_arg,
 		const string &name = extract_type(fn->getReturnType());
 		bool has_copy = name.compare("isl_printer") != 0;
 		if (has_copy) {
-			os << "                        res = Impl."
+			os << "                    res = Impl."
 			   << name << "_copy(res);" << endl;
 		}
+		os << "                    return res;" << endl;
 	}
-	os << "                    } catch (RuntimeException e) {" << endl
-	   << "                        ctx.setException(e);" << endl
-	   << "                    }" << endl
-	   << "                    return res;" << endl
-	   << "                }" << endl
+	os << "                }" << endl
 	   << "            };" << endl;
 }
 
@@ -645,15 +628,15 @@ void java_generator::print_method_jni(FunctionDecl *method) {
 			const FunctionProtoType *fn = ty->getPointeeType()->getAs<FunctionProtoType>();
 			int num_cbparms = fn->getNumParams();
 			QualType retty = fn->getReturnType();
-			c_os << retty.getAsString() << " " << fullname << "_callback"
-			     << dec << i << "(";
+			c_os << retty.getAsString() << ' ' << fullname << "_callback"
+			     << dec << i << '(';
 			for (int j=0; j<num_cbparms; ++j) {
 				if (j > 0)
 					c_os << ", ";
 				c_os << fn->getArgType(j).getAsString() << " arg" << dec << j;
 			}
 			c_os << ") {" << endl
-			     << "    struct callbackinfo *cbinfo = (struct callbackinfo *)arg" << dec << (num_cbparms-1) << ";" << endl
+			     << "    struct callbackinfo *cbinfo = (struct callbackinfo *)arg" << dec << (num_cbparms-1) << ';' << endl
 			     << "    JNIEnv *env = cbinfo->env;" << endl
 			     << "    jobject cb = cbinfo->cb;" << endl;
 
@@ -683,12 +666,17 @@ void java_generator::print_method_jni(FunctionDecl *method) {
 				c_os << ", ptr" << dec << j;
 			c_os << ");" << endl;
 
-			if (retty->isIntegerType())
-				c_os << "    return res;" << endl;
-			else if (is_isl_class(retty))
-				c_os << "    return "
+			if (retty->isIntegerType()) {
+				c_os << "    if ((*env)->ExceptionCheck(env) == JNI_TRUE)" << endl
+				     << "        return -1;" << endl
+				     << "    return res;" << endl;
+			} else if (is_isl_class(retty)) {
+				c_os << "    if ((*env)->ExceptionCheck(env) == JNI_TRUE)" << endl
+				     << "        return NULL;" << endl
+				     << "    return "
 				     << jlong2islptr("res", extract_type(retty))
 				     << ';' << endl;
+			}
 			c_os << "}" << endl;
 			callback = i;
 		}
@@ -756,6 +744,7 @@ void java_generator::print_method_jni(FunctionDecl *method) {
 		c_os << "    (*env)->DeleteGlobalRef(env, cbinfo->cb);" << endl
 		     << "    free(cbinfo);" << endl;
 	}
+	c_os << "    int exception_pending = (*env)->ExceptionCheck(env) == JNI_TRUE;" << endl;
 	for (int i = 0; i < num_params-drop_user; ++i) {
 		const ParmVarDecl *param = method->getParamDecl(i);
 		QualType ty = param->getOriginalType();
@@ -767,13 +756,15 @@ void java_generator::print_method_jni(FunctionDecl *method) {
 		} else if (ty->isPointerType()) {
 			QualType targetty = ty->getPointeeType();
 			if (is_isl_class(targetty)) {
-				c_os << "    if (" << argName << " != NULL)" << endl
+				c_os << "    if (!exception_pending && " << argName << " != NULL)" << endl
 				     << "        (*env)->SetLongArrayRegion(env, " << pname
 				     << ", 0, 1, (jlong *)" << argName << ");" << endl;
 			} else if (targetty->isIntegerType()) {
-				c_os << "    jint j_" << argName << " = " << argName << "[0];" << endl
-				     << "    (*env)->SetIntArrayRegion(env, " << pname
-				     << ", 0, 1, &j_" << argName << ");" << endl;
+				c_os << "    if (!exception_pending) {" << endl
+				     << "        jint j_" << argName << " = " << argName << "[0];" << endl
+				     << "        (*env)->SetIntArrayRegion(env, " << pname
+				     << ", 0, 1, &j_" << argName << ");" << endl
+				     << "    }" << endl;
 			}
 		}
 	}
@@ -1237,8 +1228,8 @@ void java_generator::generateClasses()
 	ostream &os_impl = outputfile(packagePath + "Impl.java");
 	os_impl << commonHeader << "class Impl {" << endl
 		<< "    static { isl.Init.loadNative(); }" << endl
-		<< "    static native int isl_ctx_last_error(long ctx);" << endl;
-          //		<< "    static native void isl_ctx_reset_error(long ctx);" << endl;
+		<< "    static native int isl_ctx_last_error(long ctx);" << endl
+		<< "    static native void isl_ctx_reset_error(long ctx);" << endl;
 
 	ostream &os_c = outputfile(jniSrc);
 	os_c << "struct callbackinfo {" << endl
@@ -1264,12 +1255,10 @@ void java_generator::generateClasses()
 	     << "    isl_ctx *ctx = " << jlong2islptr("lctx", "isl_ctx") << ';' << endl
 	     << "    return isl_ctx_last_error(ctx);" << endl
 	     << "}" << endl;
-        /*
 	os_c << jnifn("isl_ctx_reset_error", "void") << ", jlong lctx) {" << endl
 	     << "    isl_ctx *ctx = " << jlong2islptr("lctx", "isl_ctx") << ';' << endl
 	     << "    isl_ctx_reset_error(ctx);" << endl
 	     << "}" << endl;
-        */
 
 	{
 		ostream &os = outputfile(packagePath + "IslException.java");
@@ -1277,9 +1266,7 @@ void java_generator::generateClasses()
 		   << "public class IslException extends RuntimeException {"
 		   << endl
 		   << "    public IslException(String msg) { super(msg); }"
-		   << endl << "    public IslException(String msg, Throwable "
-			      "cause) { super(msg, cause); }" << endl << "}"
-		   << endl;
+		   << endl << "}" << endl;
 	}
 
 	for (ci = classes.begin(); ci != classes.end(); ++ci) {
