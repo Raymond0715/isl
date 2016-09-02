@@ -468,7 +468,7 @@ void java_generator::print_argument(ostream &os, ParmVarDecl *param)
 	}
 }
 
-void java_generator::handle_result_argument(ostream &os, const string &ctx,
+void java_generator::handle_result_argument(ostream &os,
 					    const ParmVarDecl *param)
 {
 	const string &name = param->getNameAsString();
@@ -477,25 +477,25 @@ void java_generator::handle_result_argument(ostream &os, const string &ctx,
 		const string javaTyName = javaTypeName(type->getPointeeType());
 		os << "        if (" << name << " != null)" << endl
 		   << "            " << name << "[0] = new " << javaTyName
-		   << "(" << ctx << ", _" << name << "[0]);" << endl;
+		   << "(ctx, _" << name << "[0]);" << endl;
 	}
 }
 
 void java_generator::handle_enum_return(ostream &os, const string &res,
 					const isl_enum &enu)
 {
-	os << "        switch(" << res << ") {" << endl;
+	os << "            switch(" << res << ") {" << endl;
 	map<string, int>::const_iterator it;
 	// TODO: it->second is not unique! (isl_dim_set == isl_dim_out)
 	for (it = enu.values.begin(); it != enu.values.end(); ++it) {
-		os << "        case " << it->second << ": return "
+		os << "                case " << it->second << ": return "
 		   << type2java(enu.name) << "." << enumval2java(enu, it->first)
 		   << ";" << endl;
 	}
-	os << "        default: throw new IllegalStateException"
+	os << "                default: throw new IllegalStateException"
 	   << "(\"No enum constant in " << type2java(enu.name)
-	   << " for value \" + (" << res << ") + \"?\");" << endl << "        }"
-	   << endl;
+	   << " for value \" + (" << res << ") + \"?\");" << endl
+	   << "            }" << endl;
 }
 
 void java_generator::handle_return(ostream &os, const FunctionDecl *method,
@@ -504,24 +504,34 @@ void java_generator::handle_return(ostream &os, const FunctionDecl *method,
 	QualType rettype = method->getReturnType();
 	string fullname = method->getName();
 	if (rettype->isVoidType()) {
-		return;
+		os << "            ctx.checkError();" << endl;
 	} else if (is_isl_class(rettype)) {
 		string type;
 		type = type2java(extract_type(method->getReturnType()));
-		os << "            if (" << resVar << " == 0L)" << endl
+		os << "            if (" << resVar << " == 0L) {" << endl
+		   << "                Impl.isl_ctx_reset_error("
+		      "ctx.ptr);" << endl
 		   << "                throw new IslException(\"" << fullname
 		   << " returned a NULL pointer.\");" << endl
-		   << "            return new " << type << "(this.ctx, "
+		   << "            }" << endl
+		   << "            ctx.checkError();" << endl
+		   << "            return new " << type << "(ctx, "
 		   << resVar << ");" << endl;
 	} else if (is_isl_enum(rettype)) {
+		os << "            ctx.checkError();" << endl;
 		handle_enum_return(os, resVar, find_enum(rettype));
 	} else if (is_isl_bool(rettype)) {
-		os << "            if (" << resVar << " == -1)" << endl
+		os << "            if (" << resVar << " == -1) {" << endl
+		   << "                Impl.isl_ctx_reset_error("
+		      "ctx.ptr);" << endl
 		   << "                throw new IslException(\"" << fullname
-		   << " returned isl_error.\");" << endl << "        return "
-		   << resVar << " != 0;" << endl;
+		   << " returned isl_error.\");" << endl
+		   << "            }" << endl
+		   << "            ctx.checkError();" << endl
+		   << "            return " << resVar << " != 0;" << endl;
 	} else {
-		os << "            return " << resVar << ";" << endl;
+		os << "            ctx.checkError();" << endl
+		   << "            return " << resVar << ";" << endl;
 	}
 }
 
@@ -563,16 +573,13 @@ void java_generator::print_method(ostream &os, isl_class &clazz,
 	}
 	os << ") {" << endl;
 
-	if (!is_void) {
-		os << "        " << rettype2jni(method) << " res;" << endl;
-	}
-
 	const string ctx = clazz.is_ctx() ? "this" : "this.ctx";
-	os << "        synchronized(" << ctx << ") {" << endl;
+	os << "        Ctx ctx = " << ctx << ";" << endl
+	   << "        synchronized(ctx) {" << endl;
 
 	// Look for already collected java wrapper objects and free connected
 	// isl structure.
-	os << "            " << ctx << ".freeIslC();" << endl;
+	os << "            ctx.freeIslC();" << endl;
 
 	// Declare variable 'self' which represents 'this' but
 	// with the required isl type (i.e., possibly a super type
@@ -585,7 +592,7 @@ void java_generator::print_method(ostream &os, isl_class &clazz,
 		prepare_argument(method, i, os, param);
 	}
 	if (!is_void)
-		os << "        res = ";
+		os << "            " << rettype2jni(method) << " res = ";
 	os << "Impl." << fullname << "("
 	   << isl_ptr(clazz.name, "self", takes(method->getParamDecl(0)));
 	for (int i = 1; i < num_params - drop_user; ++i) {
@@ -598,9 +605,8 @@ void java_generator::print_method(ostream &os, isl_class &clazz,
 
 	for (int i = 1; i < num_params - drop_user; ++i) {
 		const ParmVarDecl *param = method->getParamDecl(i);
-		handle_result_argument(os, "this.ctx", param);
+		handle_result_argument(os, param);
 	}
-	os << "            " << ctx << ".checkError();" << endl;
 	handle_return(os, method, "res");
 	os << "        }" << endl
 	   << "    }" << endl;
@@ -866,16 +872,21 @@ void java_generator::print_constructor(ostream &os, isl_class &clazz,
 		os << "        super(" << ctx << ", 0);" << endl;
 	}
 
-	os << "        synchronized(" << (is_ctx ? "Ctx.class" : ctx) << ") {" << endl;
+	// Ensure context (if present) is available as "ctx"
+	if (!is_ctx && (ctxArg == -1 || (ctxSrc == -1
+			&& cons->getParamDecl(ctxArg)->getNameAsString() != "ctx"))) {
+		os << "        Ctx ctx = " << ctx << ";" << endl;
+	}
+	os << "        synchronized(" << (is_ctx ? "Ctx.class" : "ctx") << ") {" << endl;
 
 	if (!is_ctx) {
 		// Look for already collected java wrapper objects and free connected
 		// isl structure.
-		os << "            " << ctx << ".freeIslC();" << endl;
+		os << "            ctx.freeIslC();" << endl;
 	}
 
 	for (int i = 0; i < num_params-drop_user; ++i) {
-		if (i == ctxArg && ctxSrc >= 0)
+		if (i == ctxArg)
 			continue;
 
 		ParmVarDecl *param = cons->getParamDecl(i);
@@ -891,7 +902,7 @@ void java_generator::print_constructor(ostream &os, isl_class &clazz,
 			os << ", ";
 
 		if (i == ctxArg) {
-			os << ctx << ".ptr";
+			os << "ctx.ptr";
 		} else {
 			ParmVarDecl *param = cons->getParamDecl(i);
 			print_argument(os, param);
@@ -899,22 +910,25 @@ void java_generator::print_constructor(ostream &os, isl_class &clazz,
 	}
 	os << ");" << endl;
 
-	os << "            if (ptr == 0L)" << endl
-	   << "                throw new IslException(\"" << fullname
-	   << " returned a NULL pointer.\");" << endl;
+	os << "            if (ptr == 0L) {" << endl;
+	if (!is_ctx)
+		os << "                Impl.isl_ctx_reset_error(ctx.ptr);" << endl;
+	os << "                throw new IslException(\"" << fullname
+	   << " returned a NULL pointer.\");" << endl
+	   << "            }" << endl;
 
 	for (int i = 0; i < num_params-drop_user; ++i) {
 		const ParmVarDecl *param = cons->getParamDecl(i);
-		handle_result_argument(os, ctx, param);
+		handle_result_argument(os, param);
 	}
 
 	if (!is_ctx)
-		os << "            " << ctx << ".checkError();" << endl;
+		os << "            ctx.checkError();" << endl;
 
 	if (asNamedConstructor) {
 		os << "            return new " << jclass << "(";
 		if (!is_ctx)
-			os << ctx + ", ";
+			os << "ctx, ";
 		os << "ptr);" << endl;
 	}
 	os << "        }" << endl
