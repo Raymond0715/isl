@@ -1044,7 +1044,7 @@ void java_generator::print_class(isl_class &clazz)
 			   << "        synchronized(this) {" << endl
 			   << "            DLnkdPhntmRef r = refList.next();" << endl
 			   << "            while (r != refList) {" << endl
-			   << "			r.freeCPtr();" << endl
+			   << "                 r.freeCPtr();" << endl
 			   << "                 r = r.next();" << endl
 			   << "            }" << endl
 			   << "            Impl." << name << "_free(ptr);" << endl
