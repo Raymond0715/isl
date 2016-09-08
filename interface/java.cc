@@ -847,6 +847,8 @@ void java_generator::print_constructor(ostream &os, isl_class &clazz,
 		else
 			firstArg = false;
 		const string &pname = param->getNameAsString();
+		if (pname.compare("ctx") == 0)
+			os << "final ";
 		os << paramtype2java(param) << " " << pname;
 	}
 
@@ -865,9 +867,10 @@ void java_generator::print_constructor(ostream &os, isl_class &clazz,
 	}
 
 	// Ensure context (if present) is available as "ctx"
-	if (!is_ctx && (ctxArg == -1 || (ctxSrc == -1
-			&& cons->getParamDecl(ctxArg)->getNameAsString() != "ctx"))) {
-		os << "        Ctx ctx = " << ctx << ";" << endl;
+	bool ctx_present = ctxArg >= 0
+		&& cons->getParamDecl(ctxArg)->getNameAsString().compare("ctx") == 0;
+	if (!is_ctx && !ctx_present) {
+		os << "        final Ctx ctx = " << ctx << ";" << endl;
 	}
 	os << "        synchronized(" << (is_ctx ? "Ctx.class" : "ctx") << ") {" << endl;
 
