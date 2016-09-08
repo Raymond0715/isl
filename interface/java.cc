@@ -986,7 +986,6 @@ void java_generator::print_class(isl_class &clazz)
 			os << "        this.ctx = ctx;" << endl;
 			if (must_be_freed) {
 				os << "        ref = createPhRef(ctx, cPtr);" << endl
-				   << "        ref.setPointer(cPtr);" << endl
 				   << "        ref.insertAfter(ctx.refList);" << endl;
 			} else {
 				os << "        ref = null;" << endl;
@@ -1047,15 +1046,15 @@ void java_generator::print_class(isl_class &clazz)
 			   << "    }" << endl;
 		else
 			os << "    private static final class FinalDLnkdPhntmRef extends DLnkdPhntmRef {" << endl
-			   << "        FinalDLnkdPhntmRef(Object referent, ReferenceQueue<? super Object> refQ) {" << endl
-			   << "            super(referent, refQ);" << endl
+			   << "        FinalDLnkdPhntmRef(Object referent, ReferenceQueue<? super Object> refQ, long ptr) {" << endl
+			   << "            super(referent, refQ, ptr);" << endl
 			   << "        }" << endl
 			   << "        void freeCPtr() {" << endl
 			   << "            Impl." << name << "_free(ptr);" << endl
 			   << "        }" << endl
 			   << "    }" << endl
 			   << "    protected DLnkdPhntmRef createPhRef(Ctx ctx, long cPtr) {" << endl
-			   << "        return new FinalDLnkdPhntmRef(this, ctx.refQ);" << endl
+			   << "        return new FinalDLnkdPhntmRef(this, ctx.refQ, cPtr);" << endl
 			   << "    }" << endl;
 	}
 

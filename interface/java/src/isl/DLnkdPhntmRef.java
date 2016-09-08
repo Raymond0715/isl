@@ -10,8 +10,9 @@ abstract class DLnkdPhntmRef extends PhantomReference<Object> {
 
     long ptr = 0;
 
-    public DLnkdPhntmRef(Object referent, ReferenceQueue<? super Object> refQ) {
+    public DLnkdPhntmRef(Object referent, ReferenceQueue<? super Object> refQ, long ptr) {
         super(referent, refQ);
+        this.ptr = ptr;
     }
 
     final void insertAfter(DLnkdPhntmRef newPrev) {
@@ -19,10 +20,6 @@ abstract class DLnkdPhntmRef extends PhantomReference<Object> {
         this.nxt = newPrev.nxt;
         this.prv.nxt = this;
         this.nxt.prv = this;
-    }
-
-    final void setPointer(long ptr) {
-        this.ptr = ptr;
     }
 
     final void remove() {
@@ -33,7 +30,7 @@ abstract class DLnkdPhntmRef extends PhantomReference<Object> {
     }
 
     final DLnkdPhntmRef next() {
-	return nxt;
+        return nxt;
     }
 
     abstract void freeCPtr();
@@ -47,7 +44,7 @@ abstract class DLnkdPhntmRef extends PhantomReference<Object> {
 
     private static final class DummyDLnkdPhntmRef extends DLnkdPhntmRef {
         private DummyDLnkdPhntmRef() {
-            super(new Object(), null);
+            super(new Object(), null, 0L);
         }
 
         final void freeCPtr() {
