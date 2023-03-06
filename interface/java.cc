@@ -484,7 +484,7 @@ void java_generator::handle_return(ostream &os, const FunctionDecl *method,
 				   const string &resVar)
 {
 	QualType rettype = method->getReturnType();
-	string fullname = method->getName();
+	string fullname = method->getName().str();
 	if (rettype->isVoidType()) {
 		os << "            ctx.checkError();" << endl;
 	} else if (is_isl_class(rettype)) {
@@ -538,7 +538,7 @@ void java_generator::print_method(ostream &os, isl_class &clazz,
 				  string super)
 {
 	string p_name = type2java(clazz.name);
-	string fullname = method->getName();
+	string fullname = method->getName().str();
 	string cname = methodname2java(clazz, fullname);
 	int num_params = method->getNumParams();
 
@@ -599,7 +599,7 @@ void java_generator::print_method(ostream &os, isl_class &clazz,
 }
 
 void java_generator::print_method_jni(FunctionDecl *method) {
-	string fullname = method->getName();
+	string fullname = method->getName().str();
 	int num_params = method->getNumParams();
 
 	int drop_user = has_user_pointer(method) ? 1 : 0;
@@ -796,7 +796,7 @@ void java_generator::print_constructor(ostream &os, isl_class &clazz,
 				       FunctionDecl *cons,
 				       bool asNamedConstructor)
 {
-	const string fullname = cons->getName();
+	const string fullname = cons->getName().str();
 	const string cname = methodname2java(clazz, fullname);
 	const string jclass = type2java(clazz.name);
 	int ctxArg = -1, ctxSrc = -1;

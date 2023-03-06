@@ -67,7 +67,7 @@ generator::generator(set<RecordDecl *> &types, set<FunctionDecl *> &functions,
 	set<RecordDecl *>::iterator it;
 	for (it = types.begin(); it != types.end(); ++it) {
 		RecordDecl *decl = *it;
-		string name = decl->getName();
+		string name = decl->getName().str();
 		classes[name].name = name;
 		classes[name].type = decl;
 	}
@@ -108,7 +108,7 @@ generator::generator(set<RecordDecl *> &types, set<FunctionDecl *> &functions,
 	set<EnumDecl *>::const_iterator ie;
 	for (ie = enums.begin(); ie != enums.end(); ++ie) {
 		const EnumDecl *edecl = *ie;
-		const string name = edecl->getName();
+		const string name = edecl->getName().str();
 		this->enums[name].name = name;
 		EnumDecl::enumerator_iterator vi;
 
@@ -482,7 +482,7 @@ static struct CbKeepArgs {
 
 bool generator::is_callback_argument_keep(FunctionDecl *fd, unsigned arg, unsigned cb_arg)
 {
-	const string &name = fd->getName();
+	const string &name = fd->getName().str();
 	for (CbKeepArgs *ta=cb_keep_args; ta->name; ++ta) {
 		if (name == ta->name && arg == ta->arg && cb_arg == ta->cb_arg) {
 			return true;

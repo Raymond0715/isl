@@ -35,6 +35,8 @@
 
 #include <assert.h>
 #include <iostream>
+#include <llvm/ADT/ArrayRef.h>
+#include <llvm/ADT/Twine.h>
 #ifdef HAVE_ADT_OWNINGPTR_H
 #include <llvm/ADT/OwningPtr.h>
 #else
@@ -65,6 +67,7 @@
 #include <clang/Frontend/Utils.h>
 #include <clang/Lex/HeaderSearch.h>
 #include <clang/Lex/Preprocessor.h>
+#include <clang/Lex/PreprocessorOptions.h>
 #include <clang/Parse/ParseAST.h>
 #include <clang/Sema/Sema.h>
 
@@ -89,7 +92,7 @@ static llvm::cl::list<string> Includes("I",
 static llvm::cl::opt<string> OutputDir("output-dir",
                                        llvm::cl::desc("Output directory"),
                                        llvm::cl::value_desc("dir"));
-static llvm::cl::opt<string> Language(llvm::cl::Required,
+static llvm::cl::opt<string> LanguageOpt(llvm::cl::Required,
                                       llvm::cl::ValueRequired, "language",
                                       llvm::cl::desc("Bindings to generate"),
                                       llvm::cl::value_desc("python"));
@@ -203,7 +206,7 @@ struct ClangAPI {
  * The arguments are mainly useful for setting up the system include
  * paths on newer clangs and on some platforms.
  */
-static CompilerInvocation *construct_invocation(const char *filename,
+shared_ptr<CompilerInvocation> construct_invocation(const char *filename,
 	DiagnosticsEngine &Diags)
 {
 	const char *binary = CLANG_PREFIX"/bin/clang";
@@ -219,18 +222,19 @@ static CompilerInvocation *construct_invocation(const char *filename,
 	if (strcmp(cmd->getCreator().getName(), "clang"))
 		return NULL;
 
-	const ArgStringList *args = &cmd->getArguments();
+	const llvm::opt::ArgStringList *args = &cmd->getArguments();
 
-	CompilerInvocation *invocation = new CompilerInvocation;
-	CompilerInvocation::CreateFromArgs(*invocation, args->data() + 1,
-						args->data() + args->size(),
-						Diags);
+	shared_ptr<CompilerInvocation> invocation = make_shared<CompilerInvocation>();
+	CompilerInvocation::CreateFromArgs(
+			*invocation.get(),
+			llvm::ArrayRef(*args),
+			Diags);
 	return invocation;
 }
 
 #else
 
-static CompilerInvocation *construct_invocation(const char *filename,
+shared_ptr<CompilerInvocation> construct_invocation(const char *filename,
 	DiagnosticsEngine &Diags)
 {
 	return NULL;
@@ -360,7 +364,7 @@ int main(int argc, char *argv[])
 	create_diagnostics(Clang);
 	DiagnosticsEngine &Diags = Clang->getDiagnostics();
 	Diags.setSuppressSystemWarnings(true);
-	CompilerInvocation *invocation =
+	shared_ptr<CompilerInvocation> invocation =
 		construct_invocation(InputFilename.c_str(), Diags);
 	if (invocation)
 		Clang->setInvocation(invocation);
@@ -368,7 +372,9 @@ int main(int argc, char *argv[])
 	Clang->createSourceManager(Clang->getFileManager());
 	TargetInfo *target = create_target_info(Clang, Diags);
 	Clang->setTarget(target);
-	CompilerInvocation::setLangDefaults(Clang->getLangOpts(), IK_C,
+	llvm::Triple triple(llvm::Twine("x86_64-pc-linux-gnu"));
+	vector<string> include;
+	LangOptions::setLangDefaults(Clang->getLangOpts(), Language::C, triple, include,
 					    LangStandard::lang_unspecified);
 	HeaderSearchOptions &HSO = Clang->getHeaderSearchOpts();
 	LangOptions &LO = Clang->getLangOpts();
@@ -378,20 +384,20 @@ int main(int argc, char *argv[])
 	for (int i = 0; i < Includes.size(); ++i)
 		add_path(HSO, Includes[i]);
 
-	PO.addMacroDef("__isl_give=__attribute__((annotate(\"isl_give\")))");
-	PO.addMacroDef("__isl_keep=__attribute__((annotate(\"isl_keep\")))");
-	PO.addMacroDef("__isl_take=__attribute__((annotate(\"isl_take\")))");
-	PO.addMacroDef("__isl_export=__attribute__((annotate(\"isl_export\")))");
-	PO.addMacroDef("__isl_constructor=__attribute__((annotate(\"isl_constructor\"))) __attribute__((annotate(\"isl_export\")))");
-	PO.addMacroDef("__isl_subclass(super)=__attribute__((annotate(\"isl_subclass(\" #super \")\"))) __attribute__((annotate(\"isl_export\")))");
-	PO.addMacroDef("__isl_inplace=__attribute__((annotate(\"isl_inplace\")))");
+	PO.addMacroDef(StringRef("__isl_give=__attribute__((annotate(\"isl_give\")))"));
+	PO.addMacroDef(StringRef("__isl_keep=__attribute__((annotate(\"isl_keep\")))"));
+	PO.addMacroDef(StringRef("__isl_take=__attribute__((annotate(\"isl_take\")))"));
+	PO.addMacroDef(StringRef("__isl_export=__attribute__((annotate(\"isl_export\")))"));
+	PO.addMacroDef(StringRef("__isl_constructor=__attribute__((annotate(\"isl_constructor\"))) __attribute__((annotate(\"isl_export\")))"));
+	PO.addMacroDef(StringRef("__isl_subclass(super)=__attribute__((annotate(\"isl_subclass(\" #super \")\"))) __attribute__((annotate(\"isl_export\")))"));
+	PO.addMacroDef(StringRef("__isl_inplace=__attribute__((annotate(\"isl_inplace\")))"));
 
 	create_preprocessor(Clang);
 	Preprocessor &PP = Clang->getPreprocessor();
 
 	PP.getBuiltinInfo().initializeBuiltins(PP.getIdentifierTable(), LO);
 
-	const FileEntry *file = Clang->getFileManager().getFile(InputFilename);
+	const FileEntry *file = Clang->getFileManager().getFile(InputFilename).get();
 	assert(file);
 	create_main_file_id(Clang->getSourceManager(), file);
 
@@ -404,14 +410,14 @@ int main(int argc, char *argv[])
 	Diags.getClient()->EndSourceFile();
 
 	generator *gen = 0;
-	if (Language.compare("python") == 0)
+	if (LanguageOpt.compare("python") == 0)
 		gen = new python_generator(consumer.types, consumer.functions,
 					   consumer.enums);
-	else if (Language.compare("java") == 0)
+	else if (LanguageOpt.compare("java") == 0)
 		gen = new java_generator(consumer.types, consumer.functions,
 					 consumer.enums);
 	else {
-		cerr << "Language '" << Language << "' not recognized." << endl
+		cerr << "LanguageOpt '" << LanguageOpt << "' not recognized." << endl
 		     << "Not generating bindings." << endl;
 	}
 

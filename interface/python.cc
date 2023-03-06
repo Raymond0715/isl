@@ -79,7 +79,7 @@ void python_generator::print_enum(const isl_enum &enu)
 bool python_generator::constructorShouldBeNamed(const isl_class &clazz,
 						FunctionDecl *cons)
 {
-	const string fullname = cons->getName();
+	const string fullname = cons->getName().str();
 	return fullname.compare("isl_equality_alloc") == 0 ||
 		fullname.compare("isl_inequality_alloc") == 0;
 }
@@ -172,7 +172,7 @@ void python_generator::print_method(const isl_class &clazz,
 				    FunctionDecl *method, bool subclass,
 				    string super)
 {
-	string fullname = method->getName();
+	string fullname = method->getName().str();
 	string cname = methodname2python(clazz, fullname);
 	int num_params = method->getNumParams();
 	int drop_user = 0;
@@ -279,7 +279,7 @@ void python_generator::print_constructor_call(const isl_class &clazz,
 					      const string &ctxVar,
 					      const string &resultVar)
 {
-	string fullname = cons->getName();
+	string fullname = cons->getName().str();
 	int num_params = cons->getNumParams();
 	int drop_ctx = first_arg_is_isl_ctx(cons);
 
@@ -343,7 +343,7 @@ void python_generator::print_constructor(const isl_class &clazz,
 void python_generator::print_named_constructor(const isl_class &clazz,
 					       FunctionDecl *cons)
 {
-	const string fullname = cons->getName();
+	const string fullname = cons->getName().str();
 	const string cname = clazz.name_without_class(fullname);
 	const string p_name = type2python(clazz.name);
 
@@ -438,7 +438,7 @@ void python_generator::print(const isl_class &clazz)
 	printf("\n");
 	for (in = clazz.constructors.begin(); in != clazz.constructors.end();
 	     ++in) {
-		string fullname = (*in)->getName();
+		string fullname = (*in)->getName().str();
 		printf("isl.%s.restype = c_void_p\n", fullname.c_str());
 		printf("isl.%s.argtypes = [", fullname.c_str());
 		for (int i = 0; i < (*in)->getNumParams(); ++i) {
@@ -458,7 +458,7 @@ void python_generator::print(const isl_class &clazz)
 		printf("]\n");
 	}
 	for (in = clazz.methods.begin(); in != clazz.methods.end(); ++in) {
-		string fullname = (*in)->getName();
+		string fullname = (*in)->getName().str();
 		QualType type = (*in)->getReturnType();
 		if (is_isl_type(type))
 			printf("isl.%s.restype = c_void_p\n", fullname.c_str());

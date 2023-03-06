@@ -15,7 +15,7 @@ AM_LDFLAGS = $(CLANG_LDFLAGS)
 includes = -I$(top_builddir) -I$(top_srcdir) \
 	-I$(top_builddir)/include -I$(top_srcdir)/include
 
-extract_interface_CPPFLAGS = $(includes)
+extract_interface_CPPFLAGS = $(includes) -g -O3
 extract_interface_SOURCES = \
 	generator.h \
 	generator.cc \
@@ -28,7 +28,8 @@ extract_interface_SOURCES = \
 extract_interface_LDADD = \
 	-lclangFrontend -lclangSerialization -lclangParse -lclangSema \
 	$(LIB_CLANG_EDIT) \
-	-lclangAnalysis -lclangAST -lclangLex -lclangBasic -lclangDriver \
+	-lclangSupport -lclangAnalysis -lclangAST -lclangASTMatchers \
+	-lclangLex -lclangDriver -lLLVMWindowsDriver -lclangBasic \
 	$(CLANG_LIBS) $(CLANG_LDFLAGS)
 
 CLEANFILES = isl.py
