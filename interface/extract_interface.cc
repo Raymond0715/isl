@@ -368,11 +368,14 @@ int main(int argc, char *argv[])
 	Clang->createSourceManager(Clang->getFileManager());
 	TargetInfo *target = create_target_info(Clang, Diags);
 	Clang->setTarget(target);
-	CompilerInvocation::setLangDefaults(Clang->getLangOpts(), IK_C,
+	llvm::Triple triple(llvm::Twine("x86_64-pc-linux-gnu"));
+	PreprocessorOptions &PO = Clang->getPreprocessorOpts();
+	CompilerInvocation::setLangDefaults(Clang->getLangOpts(), IK_C, triple, PO,
 					    LangStandard::lang_unspecified);
+	//CompilerInvocation::setLangDefaults(Clang->getLangOpts(), IK_C,
+							//LangStandard::lang_unspecified);
 	HeaderSearchOptions &HSO = Clang->getHeaderSearchOpts();
 	LangOptions &LO = Clang->getLangOpts();
-	PreprocessorOptions &PO = Clang->getPreprocessorOpts();
 	HSO.ResourceDir = ResourceDir;
 
 	for (int i = 0; i < Includes.size(); ++i)
